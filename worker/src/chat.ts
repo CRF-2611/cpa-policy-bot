@@ -49,7 +49,7 @@ export async function handleChat(request: Request, env: Env): Promise<Response> 
     const toolResults: Anthropic.ToolResultBlockParam[] = await Promise.all(
       toolUseBlocks.map(async block => {
         console.log(`Tool call: ${block.name}`, block.input);
-        const result = await executeTool(block.name, block.input as Record<string, string>, env);
+        const result = await executeTool(block.name, block.input as Record<string, unknown>, env);
         return {
           type: 'tool_result' as const,
           tool_use_id: block.id,

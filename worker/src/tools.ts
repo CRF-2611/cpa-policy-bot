@@ -1,124 +1,189 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type Anthropic from '@anthropic-ai/sdk';
 import type { Env } from './index';
 
+const VALID_SOURCES = ['notion', 'gdrive', 'hansard', 'written_questions'] as const;
+type Source = (typeof VALID_SOURCES)[number];
+
+const SNIPPET_LENGTH = 500;
+
+// ── Tool definitions ──────────────────────────────────────────────────────────
+
 export const tools: Anthropic.Tool[] = [
   {
-    name: 'search_lines_to_take',
-    description:
-      'Search Liberal Democrat Lines to Take synced from Notion. Use this first for any policy question — these are the official party positions and key messages.',
+    name: 'search_policy_content',
+    description: `Full-text search across synced policy content.
+
+Sources available:
+- "notion"             — Lines to Take (official party positions, updated hourly)
+- "gdrive"             — CPA briefings (detailed policy documents, updated every 6h)
+- "hansard"            — Parliamentary contributions by Lib Dem MPs/peers (updated daily)
+- "written_questions"  — Written questions and government answers (updated daily)
+
+Returns up to 10 results with a content snippet. If a snippet is insufficient, call get_document_content with the result's id to retrieve the full text.`,
     input_schema: {
       type: 'object' as const,
       properties: {
-        query: { type: 'string', description: 'Full-text search query' },
-        topic: { type: 'string', description: 'Optional topic filter (e.g. "Health", "Housing")' },
+        query: {
+          type: 'string',
+          description:
+            'Full-text search query. Supports websearch syntax: phrases in "double quotes", + to require a term, - to exclude.',
+        },
+        sources: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: [...VALID_SOURCES],
+          },
+          description:
+            'Optional. Restrict search to one or more sources. Omit to search all sources at once.',
+        },
       },
       required: ['query'],
     },
   },
   {
-    name: 'search_briefings',
+    name: 'get_document_content',
     description:
-      'Search policy briefings synced from Google Drive. Use for detailed evidence, statistics, and background on policy areas.',
+      'Fetches the complete text of a specific policy_content record by its id. Use when a snippet from search_policy_content is insufficient and you need the full document.',
     input_schema: {
       type: 'object' as const,
       properties: {
-        query: { type: 'string', description: 'Full-text search query' },
+        id: {
+          type: 'string',
+          description: 'UUID of the policy_content record (returned in search results).',
+        },
       },
-      required: ['query'],
+      required: ['id'],
     },
   },
   {
-    name: 'search_parliamentary_debates',
+    name: 'get_sync_status',
     description:
-      'Search Hansard records of parliamentary contributions by Lib Dem MPs and peers. Use to show how the party has argued its positions in Parliament.',
+      'Returns the most recent sync time, status, and record count for each data source. Use this when the user asks how current the data is, or when search results seem sparse and you want to check whether a sync has failed.',
     input_schema: {
       type: 'object' as const,
-      properties: {
-        query: { type: 'string', description: 'Full-text search query' },
-        member_name: { type: 'string', description: 'Optional: filter by member name (partial match)' },
-        from_date: { type: 'string', description: 'Optional: only include debates on or after this date (YYYY-MM-DD)' },
-      },
-      required: ['query'],
-    },
-  },
-  {
-    name: 'search_written_questions',
-    description:
-      'Search written parliamentary questions tabled by Lib Dem members and government answers. Use to find official government responses and parliamentary scrutiny.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        query: { type: 'string', description: 'Full-text search query' },
-        answering_body: { type: 'string', description: 'Optional: filter by government department (partial match)' },
-      },
-      required: ['query'],
+      properties: {},
+      required: [],
     },
   },
 ];
 
+// ── Tool dispatcher ───────────────────────────────────────────────────────────
+
 export async function executeTool(
   name: string,
-  input: Record<string, string>,
+  input: Record<string, unknown>,
   env: Env,
 ): Promise<unknown> {
   const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
   switch (name) {
-    case 'search_lines_to_take': {
-      let q = supabase
-        .from('policy_content')
-        .select('title, content, url, last_updated, metadata')
-        .eq('source', 'notion')
-        .textSearch('content', input.query, { type: 'websearch', config: 'english' })
-        .limit(5);
-      if (input.topic) q = q.eq('metadata->>topic', input.topic);
-      const { data, error } = await q;
-      if (error) return { error: error.message };
-      return { results: data ?? [], count: data?.length ?? 0 };
-    }
+    case 'search_policy_content':
+      return searchPolicyContent(
+        supabase,
+        input.query as string,
+        input.sources as Source[] | undefined,
+      );
 
-    case 'search_briefings': {
-      const { data, error } = await supabase
-        .from('policy_content')
-        .select('title, content, url, last_updated, metadata')
-        .eq('source', 'gdrive')
-        .textSearch('content', input.query, { type: 'websearch', config: 'english' })
-        .limit(5);
-      if (error) return { error: error.message };
-      return { results: data ?? [], count: data?.length ?? 0 };
-    }
+    case 'get_document_content':
+      return getDocumentContent(supabase, input.id as string);
 
-    case 'search_parliamentary_debates': {
-      let q = supabase
-        .from('policy_content')
-        .select('title, content, url, last_updated, metadata')
-        .eq('source', 'hansard')
-        .textSearch('content', input.query, { type: 'websearch', config: 'english' })
-        .order('last_updated', { ascending: false })
-        .limit(8);
-      if (input.member_name) q = q.ilike('metadata->>member_name', `%${input.member_name}%`);
-      if (input.from_date) q = q.gte('last_updated', input.from_date);
-      const { data, error } = await q;
-      if (error) return { error: error.message };
-      return { results: data ?? [], count: data?.length ?? 0 };
-    }
-
-    case 'search_written_questions': {
-      let q = supabase
-        .from('policy_content')
-        .select('title, content, url, last_updated, metadata')
-        .eq('source', 'written_questions')
-        .textSearch('content', input.query, { type: 'websearch', config: 'english' })
-        .order('last_updated', { ascending: false })
-        .limit(5);
-      if (input.answering_body) q = q.ilike('metadata->>answering_body', `%${input.answering_body}%`);
-      const { data, error } = await q;
-      if (error) return { error: error.message };
-      return { results: data ?? [], count: data?.length ?? 0 };
-    }
+    case 'get_sync_status':
+      return getSyncStatus(supabase);
 
     default:
       return { error: `Unknown tool: ${name}` };
   }
+}
+
+// ── Tool implementations ──────────────────────────────────────────────────────
+
+async function searchPolicyContent(
+  supabase: SupabaseClient,
+  query: string,
+  sources?: Source[],
+): Promise<unknown> {
+  if (!query?.trim()) {
+    return { error: 'query must not be empty' };
+  }
+
+  // Validate sources so a bad value doesn't silently return nothing
+  const filteredSources = sources?.filter((s): s is Source =>
+    (VALID_SOURCES as readonly string[]).includes(s),
+  );
+
+  let q = supabase
+    .from('policy_content')
+    .select('id, source, title, content, url, last_updated')
+    .textSearch('content', query, { type: 'websearch', config: 'english' })
+    .order('last_updated', { ascending: false })
+    .limit(10);
+
+  if (filteredSources && filteredSources.length > 0) {
+    q = q.in('source', filteredSources);
+  }
+
+  const { data, error } = await q;
+  if (error) return { error: error.message };
+
+  const results = (data ?? []).map(row => ({
+    id: row.id,
+    source: row.source,
+    title: row.title,
+    snippet:
+      (row.content as string).length > SNIPPET_LENGTH
+        ? (row.content as string).slice(0, SNIPPET_LENGTH) + '…'
+        : row.content,
+    url: row.url,
+    last_updated: row.last_updated,
+  }));
+
+  return { results, count: results.length };
+}
+
+async function getDocumentContent(supabase: SupabaseClient, id: string): Promise<unknown> {
+  if (!id?.trim()) {
+    return { error: 'id must not be empty' };
+  }
+
+  const { data, error } = await supabase
+    .from('policy_content')
+    .select('id, source, title, content, url, last_updated, metadata')
+    .eq('id', id)
+    .single();
+
+  if (error) return { error: error.message };
+  if (!data) return { error: 'Document not found' };
+
+  return data;
+}
+
+async function getSyncStatus(supabase: SupabaseClient): Promise<unknown> {
+  // Fetch enough rows to guarantee at least one per source, then deduplicate
+  const { data, error } = await supabase
+    .from('sync_log')
+    .select('source, last_sync_at, status, records_updated')
+    .order('last_sync_at', { ascending: false })
+    .limit(40);
+
+  if (error) return { error: error.message };
+
+  // Keep the most recent row per source
+  const seen = new Set<string>();
+  const latest = (data ?? []).filter(row => {
+    if (seen.has(row.source)) return false;
+    seen.add(row.source);
+    return true;
+  });
+
+  // Report any sources that have never synced
+  const missing = VALID_SOURCES.filter(s => !seen.has(s)).map(s => ({
+    source: s,
+    last_sync_at: null,
+    status: 'never_synced',
+    records_updated: 0,
+  }));
+
+  return { sources: [...latest, ...missing] };
 }
