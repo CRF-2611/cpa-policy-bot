@@ -11,42 +11,39 @@ export interface Env {
   SUPABASE_ANON_KEY: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
   APP_PASSWORD: string;
+  SYNC_SECRET: string;
+  ASSETS: Fetcher;
 }
 
-const CORS_HEADERS = {
+const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     if (request.method === 'OPTIONS') {
-      return new Response(null, { headers: CORS_HEADERS });
+      return new Response(null, { status: 204, headers: CORS });
     }
 
-    const url = new URL(request.url);
+    const { pathname } = new URL(request.url);
 
-    if (url.pathname === '/api/chat') {
-      if (request.method !== 'POST') {
-        return json({ error: 'Method not allowed' }, 405);
-      }
-      const auth = request.headers.get('Authorization');
-      if (!auth || auth !== `Bearer ${env.APP_PASSWORD}`) {
-        return json({ error: 'Unauthorized' }, 401);
-      }
-      const response = await handleChat(request, env);
-      for (const [k, v] of Object.entries(CORS_HEADERS)) {
-        response.headers.set(k, v);
-      }
-      return response;
+    if (pathname === '/chat') {
+      if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+      const authErr = requireBearer(request, env.APP_PASSWORD);
+      if (authErr) return authErr;
+      return withCors(await handleChat(request, env));
     }
 
-    if (url.pathname === '/health') {
-      return json({ status: 'ok' });
+    if (pathname.startsWith('/sync/')) {
+      if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+      const authErr = requireBearer(request, env.SYNC_SECRET);
+      if (authErr) return authErr;
+      return triggerSync(pathname, env, ctx);
     }
 
-    return json({ error: 'Not found' }, 404);
+    return env.ASSETS.fetch(request);
   },
 
   async scheduled(event: ScheduledEvent, env: Env): Promise<void> {
@@ -65,9 +62,36 @@ export default {
   },
 };
 
+function triggerSync(pathname: string, env: Env, ctx: ExecutionContext): Response {
+  const syncFns: Record<string, () => Promise<void>> = {
+    '/sync/notion': () => syncNotion(env),
+    '/sync/gdrive': () => syncGdrive(env),
+    '/sync/parliamentary': () => syncParliamentary(env),
+  };
+
+  const fn = syncFns[pathname];
+  if (!fn) return json({ error: 'Unknown sync route' }, 404);
+
+  ctx.waitUntil(fn());
+  return json({ status: 'started' }, 202);
+}
+
+function requireBearer(request: Request, secret: string): Response | null {
+  const auth = request.headers.get('Authorization');
+  if (auth === `Bearer ${secret}`) return null;
+  return json({ error: 'Unauthorized' }, 401);
+}
+
+function withCors(res: Response): Response {
+  return new Response(res.body, {
+    status: res.status,
+    headers: { ...Object.fromEntries(res.headers.entries()), ...CORS },
+  });
+}
+
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+    headers: { 'Content-Type': 'application/json', ...CORS },
   });
 }
