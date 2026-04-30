@@ -29,6 +29,14 @@ export default {
 
     const { pathname } = new URL(request.url);
 
+    if (pathname === '/auth') {
+      if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+      let body: { password?: string };
+      try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
+      if (body.password === env.APP_PASSWORD) return json({ token: env.APP_PASSWORD });
+      return json({ error: 'Unauthorized' }, 401);
+    }
+
     if (pathname === '/chat') {
       if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
       const authErr = requireBearer(request, env.APP_PASSWORD);
