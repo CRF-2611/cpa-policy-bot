@@ -5,8 +5,6 @@ import type { Env } from './index';
 const VALID_SOURCES = ['notion', 'gdrive', 'hansard', 'written_questions'] as const;
 type Source = (typeof VALID_SOURCES)[number];
 
-const SNIPPET_LENGTH = 500;
-
 // ── Tool definitions ──────────────────────────────────────────────────────────
 
 export const tools: Anthropic.Tool[] = [
@@ -20,7 +18,9 @@ Sources available:
 - "hansard"            — Parliamentary contributions by Lib Dem MPs/peers (updated daily)
 - "written_questions"  — Written questions and government answers (updated daily)
 
-Returns up to 10 results with a content snippet. If a snippet is insufficient, call get_document_content with the result's id to retrieve the full text.`,
+Returns up to 10 results with a relevant content snippet. Pass multiple sources to
+search them in parallel. If a snippet is insufficient, call get_document_content with
+the result's id to retrieve the full text.`,
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -69,15 +69,19 @@ Returns up to 10 results with a content snippet. If a snippet is insufficient, c
   },
 ];
 
+// ── Client factory — one client per chat request ──────────────────────────────
+
+export function makeSupabaseClient(env: Env): SupabaseClient {
+  return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+}
+
 // ── Tool dispatcher ───────────────────────────────────────────────────────────
 
 export async function executeTool(
   name: string,
   input: Record<string, unknown>,
-  env: Env,
+  supabase: SupabaseClient,
 ): Promise<unknown> {
-  const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-
   switch (name) {
     case 'search_policy_content':
       return searchPolicyContent(
@@ -108,38 +112,18 @@ async function searchPolicyContent(
     return { error: 'query must not be empty' };
   }
 
-  // Validate sources so a bad value doesn't silently return nothing
-  const filteredSources = sources?.filter((s): s is Source =>
-    (VALID_SOURCES as readonly string[]).includes(s),
-  );
+  const filteredSources =
+    sources?.filter((s): s is Source => (VALID_SOURCES as readonly string[]).includes(s)) ?? null;
 
-  let q = supabase
-    .from('policy_content')
-    .select('id, source, title, content, url, last_updated')
-    .textSearch('content', query, { type: 'websearch', config: 'english' })
-    .order('last_updated', { ascending: false })
-    .limit(10);
+  const { data, error } = await supabase.rpc('search_policy', {
+    p_query: query,
+    p_sources: filteredSources,
+    p_limit: 10,
+  });
 
-  if (filteredSources && filteredSources.length > 0) {
-    q = q.in('source', filteredSources);
-  }
-
-  const { data, error } = await q;
   if (error) return { error: error.message };
 
-  const results = (data ?? []).map(row => ({
-    id: row.id,
-    source: row.source,
-    title: row.title,
-    snippet:
-      (row.content as string).length > SNIPPET_LENGTH
-        ? (row.content as string).slice(0, SNIPPET_LENGTH) + '…'
-        : row.content,
-    url: row.url,
-    last_updated: row.last_updated,
-  }));
-
-  return { results, count: results.length };
+  return { results: data ?? [], count: (data ?? []).length };
 }
 
 async function getDocumentContent(supabase: SupabaseClient, id: string): Promise<unknown> {
@@ -160,7 +144,6 @@ async function getDocumentContent(supabase: SupabaseClient, id: string): Promise
 }
 
 async function getSyncStatus(supabase: SupabaseClient): Promise<unknown> {
-  // Fetch enough rows to guarantee at least one per source, then deduplicate
   const { data, error } = await supabase
     .from('sync_log')
     .select('source, last_sync_at, status, records_updated')
@@ -169,7 +152,6 @@ async function getSyncStatus(supabase: SupabaseClient): Promise<unknown> {
 
   if (error) return { error: error.message };
 
-  // Keep the most recent row per source
   const seen = new Set<string>();
   const latest = (data ?? []).filter(row => {
     if (seen.has(row.source)) return false;
@@ -177,7 +159,6 @@ async function getSyncStatus(supabase: SupabaseClient): Promise<unknown> {
     return true;
   });
 
-  // Report any sources that have never synced
   const missing = VALID_SOURCES.filter(s => !seen.has(s)).map(s => ({
     source: s,
     last_sync_at: null,

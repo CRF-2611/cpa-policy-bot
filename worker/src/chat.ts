@@ -1,7 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { createClient } from '@supabase/supabase-js';
 import { SYSTEM_PROMPT } from './system_prompt';
-import { tools, executeTool } from './tools';
+import { tools, executeTool, makeSupabaseClient } from './tools';
 import type { Env } from './index';
 
 const MAX_TOOL_ITERATIONS = 10;
@@ -40,7 +39,7 @@ async function runChat(
   env: Env,
   emit: (event: string, data: unknown) => void,
 ): Promise<void> {
-  const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+  const supabase = makeSupabaseClient(env);
   const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
 
   try {
@@ -140,7 +139,7 @@ async function runChat(
           const result = await executeTool(
             block.name,
             block.input as Record<string, unknown>,
-            env,
+            supabase,
           );
           return {
             type: 'tool_result' as const,
