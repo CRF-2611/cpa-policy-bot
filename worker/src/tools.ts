@@ -118,7 +118,7 @@ async function searchPolicyContent(
   const { data, error } = await supabase.rpc('search_policy', {
     p_query: query,
     p_sources: filteredSources,
-    p_limit: 10,
+    p_limit: 5,
   });
 
   if (error) return { error: error.message };

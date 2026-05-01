@@ -72,7 +72,9 @@ async function runChat(
       const stream = client.messages.stream({
         model: 'claude-sonnet-4-6',
         max_tokens: 4096,
-        system: SYSTEM_PROMPT,
+        // Cache the system prompt — it's 3000+ tokens and identical across every call.
+        // After the first request the cached version is reused, cutting input costs ~90%.
+        system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
         tools,
         messages: conversation,
       });

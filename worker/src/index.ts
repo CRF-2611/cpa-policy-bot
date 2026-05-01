@@ -57,11 +57,11 @@ export default {
   async scheduled(event: ScheduledEvent, env: Env): Promise<void> {
     console.log(`Scheduled trigger: ${event.cron}`);
     try {
-      if (event.cron === '0 * * * *') {
+      if (event.cron === '0 6 * * *') {
         await syncNotion(env);
-      } else if (event.cron === '0 0,6,12,18 * * *') {
+      } else if (event.cron === '30 6 * * *') {
         await syncGdrive(env);
-      } else if (event.cron === '0 6 * * *') {
+      } else if (event.cron === '0 7 * * *') {
         await syncParliamentary(env);
       }
     } catch (err) {

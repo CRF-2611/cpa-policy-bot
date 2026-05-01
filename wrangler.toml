@@ -9,9 +9,9 @@ binding   = "ASSETS"
 
 [triggers]
 crons = [
-  "0 * * * *",          # Every hour       — Notion Lines to Take
-  "0 0,6,12,18 * * *",  # Every 6 hours    — Google Drive briefings
-  "0 6 * * *",          # Daily at 06:00   — Parliamentary activity
+  "0 6 * * *",   # 06:00 UTC daily — Notion Lines to Take
+  "30 6 * * *",  # 06:30 UTC daily — Google Drive briefings
+  "0 7 * * *",   # 07:00 UTC daily — Parliamentary activity
 ]
 
 [vars]
