@@ -130,6 +130,20 @@
       border-radius: 20px;
     }
 
+    #sync-btn {
+      background: none;
+      border: 1px solid rgba(255,255,255,0.35);
+      color: #fff;
+      border-radius: 6px;
+      padding: 0.25rem 0.6rem;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #sync-btn:hover:not(:disabled) { background: rgba(255,255,255,0.12); }
+    #sync-btn:disabled { opacity: 0.5; cursor: default; }
+
     /* ── Messages ─────────────────────────────────────────────────────────── */
 
     #messages {
@@ -356,7 +370,10 @@
 <div id="chat-screen">
   <header>
     <h1>CPA Policy Bot</h1>
-    <span class="badge">Liberal Democrats</span>
+    <div style="display:flex;align-items:center;gap:0.6rem;">
+      <button id="sync-btn" title="Sync all data sources now">Sync data</button>
+      <span class="badge">Liberal Democrats</span>
+    </div>
   </header>
 
   <div id="messages"></div>
@@ -759,6 +776,28 @@
   }
 
   /* ── Event listeners ──────────────────────────────────────────────────── */
+
+  var syncBtn = document.getElementById('sync-btn');
+  syncBtn.addEventListener('click', async function () {
+    var tok = sessionStorage.getItem('tok');
+    if (!tok) return;
+    syncBtn.disabled = true;
+    syncBtn.textContent = 'Syncing…';
+    try {
+      var res = await fetch('/admin/sync', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + tok },
+      });
+      syncBtn.textContent = res.ok ? 'Sync started ✓' : 'Sync failed ✗';
+    } catch (_) {
+      syncBtn.textContent = 'Sync failed ✗';
+    } finally {
+      setTimeout(function () {
+        syncBtn.textContent = 'Sync data';
+        syncBtn.disabled = false;
+      }, 4000);
+    }
+  });
 
   document.getElementById('login-btn').addEventListener('click', login);
 

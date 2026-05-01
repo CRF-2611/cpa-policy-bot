@@ -51,6 +51,14 @@ export default {
       return triggerSync(pathname, env, ctx);
     }
 
+    if (pathname === '/admin/sync') {
+      if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+      const authErr = requireBearer(request, env.APP_PASSWORD);
+      if (authErr) return authErr;
+      ctx.waitUntil(Promise.all([syncNotion(env), syncGdrive(env), syncParliamentary(env)]));
+      return json({ status: 'started' }, 202);
+    }
+
     return env.ASSETS.fetch(request);
   },
 
