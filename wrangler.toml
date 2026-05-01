@@ -13,13 +13,3 @@ crons = [
   "30 6 * * *",  # 06:30 UTC daily — Google Drive briefings
   "0 7 * * *",   # 07:00 UTC daily — Parliamentary activity
 ]
-
-[vars]
-ANTHROPIC_API_KEY          = ""
-NOTION_TOKEN               = ""
-GOOGLE_SERVICE_ACCOUNT_JSON = ""
-SUPABASE_URL               = ""
-SUPABASE_ANON_KEY          = ""
-SUPABASE_SERVICE_ROLE_KEY  = ""
-APP_PASSWORD               = ""
-SYNC_SECRET                = ""
