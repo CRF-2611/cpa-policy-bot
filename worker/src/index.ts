@@ -2,6 +2,9 @@ import { handleChat } from './chat';
 import { syncNotion } from './sync/notion';
 import { syncGdrive } from './sync/gdrive';
 import { syncParliamentary } from './sync/parliamentary';
+import { syncManifesto } from './sync/manifesto';
+import { syncRollingTopLines } from './sync/rolling_top_lines';
+import { syncPolicyPapers } from './sync/policy_papers';
 
 export interface Env {
   ANTHROPIC_API_KEY: string;
@@ -57,12 +60,14 @@ export default {
   async scheduled(event: ScheduledEvent, env: Env): Promise<void> {
     console.log(`Scheduled trigger: ${event.cron}`);
     try {
-      if (event.cron === '0 * * * *') {
+      if (event.cron === '0 6 * * *') {
         await syncNotion(env);
-      } else if (event.cron === '0 0,6,12,18 * * *') {
+      } else if (event.cron === '30 6 * * *') {
         await syncGdrive(env);
-      } else if (event.cron === '0 6 * * *') {
+      } else if (event.cron === '0 7 * * *') {
         await syncParliamentary(env);
+      } else if (event.cron === '30 7 * * *') {
+        await Promise.all([syncManifesto(env), syncRollingTopLines(env), syncPolicyPapers(env)]);
       }
     } catch (err) {
       console.error(`Sync failed for cron ${event.cron}:`, err);
@@ -75,6 +80,9 @@ function triggerSync(pathname: string, env: Env, ctx: ExecutionContext): Respons
     '/sync/notion': () => syncNotion(env),
     '/sync/gdrive': () => syncGdrive(env),
     '/sync/parliamentary': () => syncParliamentary(env),
+    '/sync/manifesto': () => syncManifesto(env),
+    '/sync/rolling_top_lines': () => syncRollingTopLines(env),
+    '/sync/policy_papers': () => syncPolicyPapers(env),
   };
 
   const fn = syncFns[pathname];

@@ -2,7 +2,15 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type Anthropic from '@anthropic-ai/sdk';
 import type { Env } from './index';
 
-const VALID_SOURCES = ['notion', 'gdrive', 'hansard', 'written_questions'] as const;
+const VALID_SOURCES = [
+  'notion',
+  'gdrive',
+  'hansard',
+  'written_questions',
+  'manifesto',
+  'rolling_top_lines',
+  'policy_papers',
+] as const;
 type Source = (typeof VALID_SOURCES)[number];
 
 const SNIPPET_LENGTH = 500;
@@ -15,10 +23,13 @@ export const tools: Anthropic.Tool[] = [
     description: `Full-text search across synced policy content.
 
 Sources available:
-- "notion"             — Lines to Take (official party positions, updated hourly)
-- "gdrive"             — CPA briefings (detailed policy documents, updated every 6h)
+- "notion"             — Lines to Take (official party positions, updated daily)
+- "gdrive"             — CPA briefings (detailed policy documents, updated daily)
 - "hansard"            — Parliamentary contributions by Lib Dem MPs/peers (updated daily)
 - "written_questions"  — Written questions and government answers (updated daily)
+- "manifesto"          — 2024 General Election Manifesto (updated daily)
+- "rolling_top_lines"  — Rolling top lines Google Doc (updated daily)
+- "policy_papers"      — Formal Lib Dem policy papers (updated daily)
 
 Returns up to 10 results with a content snippet. If a snippet is insufficient, call get_document_content with the result's id to retrieve the full text.`,
     input_schema: {

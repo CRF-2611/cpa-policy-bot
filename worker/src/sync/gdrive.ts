@@ -1,10 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Env } from '../index';
+import { type ServiceAccount, getGoogleAccessToken } from './googleAuth';
 
 const SOURCE = 'gdrive';
 const BRIEFINGS_FOLDER_ID = '1hAtDKH9UEH7emABrZECfgwXpkWF7tUti';
 const DRIVE_BASE = 'https://www.googleapis.com/drive/v3';
-const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
 
@@ -15,11 +15,6 @@ const EXPORT_FORMATS: Record<string, string> = {
 };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-
-interface ServiceAccount {
-  client_email: string;
-  private_key: string;
-}
 
 interface DriveFile {
   id: string;
@@ -34,11 +29,6 @@ interface DriveFileList {
   nextPageToken?: string;
 }
 
-interface TokenResponse {
-  access_token: string;
-  error?: string;
-}
-
 // ── Main export ───────────────────────────────────────────────────────────────
 
 export async function syncGdrive(env: Env): Promise<void> {
@@ -49,7 +39,7 @@ export async function syncGdrive(env: Env): Promise<void> {
 
   try {
     const serviceAccount: ServiceAccount = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON);
-    const accessToken = await getAccessToken(serviceAccount);
+    const accessToken = await getGoogleAccessToken(serviceAccount, DRIVE_SCOPE);
 
     // Recursively collect all exportable files under the briefings folder
     const files = await collectFolderFiles(BRIEFINGS_FOLDER_ID, accessToken);
@@ -175,83 +165,3 @@ async function exportContent(file: DriveFile, token: string): Promise<string | n
   return res.text();
 }
 
-// ── Google OAuth2 — JWT bearer flow ──────────────────────────────────────────
-
-async function getAccessToken(account: ServiceAccount): Promise<string> {
-  const jwt = await buildServiceAccountJwt(account);
-
-  const res = await fetch(TOKEN_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: jwt,
-    }),
-  });
-
-  const data = (await res.json()) as TokenResponse;
-
-  if (!res.ok || !data.access_token) {
-    throw new Error(`Token exchange failed (${res.status}): ${data.error ?? 'unknown'}`);
-  }
-
-  return data.access_token;
-}
-
-/**
- * Builds a signed RS256 JWT for the service-account bearer flow.
- * Uses WebCrypto (available in Cloudflare Workers) — no Node.js crypto.
- */
-async function buildServiceAccountJwt(account: ServiceAccount): Promise<string> {
-  const now = Math.floor(Date.now() / 1000);
-
-  const header  = { alg: 'RS256', typ: 'JWT' };
-  const payload = {
-    iss: account.client_email,
-    sub: account.client_email,
-    scope: DRIVE_SCOPE,
-    aud: TOKEN_URL,
-    iat: now,
-    exp: now + 3600,
-  };
-
-  const signingInput = `${b64url(JSON.stringify(header))}.${b64url(JSON.stringify(payload))}`;
-
-  // Strip PEM envelope and decode the PKCS#8 DER bytes
-  const pemBody = account.private_key
-    .replace(/-----BEGIN PRIVATE KEY-----/g, '')
-    .replace(/-----END PRIVATE KEY-----/g, '')
-    .replace(/\s+/g, '');
-
-  const keyBytes = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
-
-  const cryptoKey = await crypto.subtle.importKey(
-    'pkcs8',
-    keyBytes,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
-
-  const sigBuffer = await crypto.subtle.sign(
-    'RSASSA-PKCS1-v1_5',
-    cryptoKey,
-    new TextEncoder().encode(signingInput),
-  );
-
-  return `${signingInput}.${b64urlBytes(new Uint8Array(sigBuffer))}`;
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/** Base64url-encodes a UTF-8 string. */
-function b64url(str: string): string {
-  return b64urlBytes(new TextEncoder().encode(str));
-}
-
-/** Base64url-encodes a byte array without stack-blowing spread. */
-function b64urlBytes(bytes: Uint8Array): string {
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-}
