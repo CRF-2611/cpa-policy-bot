@@ -53,10 +53,12 @@ async function runChat(
 
     if (loadError) throw new Error(`Failed to load history: ${loadError.message}`);
 
-    const conversation: Anthropic.MessageParam[] = (rows ?? []).map(r => ({
-      role: r.role as 'user' | 'assistant',
-      content: r.content as string,
-    }));
+    const conversation: Anthropic.MessageParam[] = (rows ?? [])
+      .filter(r => typeof r.content === 'string' && r.content.length > 0)
+      .map(r => ({
+        role: r.role as 'user' | 'assistant',
+        content: r.content as string,
+      }));
 
     conversation.push({ role: 'user', content: userMessage });
 
