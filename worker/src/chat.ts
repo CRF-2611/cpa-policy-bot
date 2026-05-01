@@ -1,7 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { createClient } from '@supabase/supabase-js';
 import { SYSTEM_PROMPT } from './system_prompt';
-import { tools, executeTool } from './tools';
+import { tools, executeTool, makeSupabaseClient } from './tools';
 import type { Env } from './index';
 
 const MAX_TOOL_ITERATIONS = 10;
@@ -40,7 +39,7 @@ async function runChat(
   env: Env,
   emit: (event: string, data: unknown) => void,
 ): Promise<void> {
-  const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+  const supabase = makeSupabaseClient(env);
   const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
 
   try {
@@ -68,12 +67,14 @@ async function runChat(
     let accumulatedText = '';
 
     for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
-      emit('status', { state: i === 0 ? 'thinking' : 'searching' });
+      emit('status', { state: 'thinking' });
 
       const stream = client.messages.stream({
         model: 'claude-sonnet-4-6',
         max_tokens: 4096,
-        system: SYSTEM_PROMPT,
+        // Prompt caching — the system prompt is ~3000 tokens and identical every call.
+        // Cached after first request; saves ~90% of input token processing cost.
+        system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
         tools,
         messages: conversation,
       });
@@ -133,6 +134,8 @@ async function runChat(
 
       if (stopReason === 'end_turn' || toolUseBlocks.length === 0) break;
 
+      emit('status', { state: 'searching' });
+
       // Execute tool calls and feed results back
       const toolResults: Anthropic.ToolResultBlockParam[] = await Promise.all(
         toolUseBlocks.map(async block => {
@@ -140,7 +143,7 @@ async function runChat(
           const result = await executeTool(
             block.name,
             block.input as Record<string, unknown>,
-            env,
+            supabase,
           );
           return {
             type: 'tool_result' as const,

@@ -2,6 +2,10 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type Anthropic from '@anthropic-ai/sdk';
 import type { Env } from './index';
 
+export function makeSupabaseClient(env: Env): SupabaseClient {
+  return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+}
+
 const VALID_SOURCES = [
   'notion',
   'gdrive',
@@ -12,8 +16,6 @@ const VALID_SOURCES = [
   'policy_papers',
 ] as const;
 type Source = (typeof VALID_SOURCES)[number];
-
-const SNIPPET_LENGTH = 500;
 
 // ── Tool definitions ──────────────────────────────────────────────────────────
 
@@ -85,10 +87,8 @@ Returns up to 10 results with a content snippet. If a snippet is insufficient, c
 export async function executeTool(
   name: string,
   input: Record<string, unknown>,
-  env: Env,
+  supabase: SupabaseClient,
 ): Promise<unknown> {
-  const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-
   switch (name) {
     case 'search_policy_content':
       return searchPolicyContent(
@@ -119,38 +119,18 @@ async function searchPolicyContent(
     return { error: 'query must not be empty' };
   }
 
-  // Validate sources so a bad value doesn't silently return nothing
-  const filteredSources = sources?.filter((s): s is Source =>
-    (VALID_SOURCES as readonly string[]).includes(s),
-  );
+  const filteredSources =
+    sources?.filter((s): s is Source => (VALID_SOURCES as readonly string[]).includes(s)) ?? null;
 
-  let q = supabase
-    .from('policy_content')
-    .select('id, source, title, content, url, last_updated')
-    .textSearch('content', query, { type: 'websearch', config: 'english' })
-    .order('last_updated', { ascending: false })
-    .limit(10);
+  const { data, error } = await supabase.rpc('search_policy', {
+    p_query: query,
+    p_sources: filteredSources,
+    p_limit: 5,
+  });
 
-  if (filteredSources && filteredSources.length > 0) {
-    q = q.in('source', filteredSources);
-  }
-
-  const { data, error } = await q;
   if (error) return { error: error.message };
 
-  const results = (data ?? []).map(row => ({
-    id: row.id,
-    source: row.source,
-    title: row.title,
-    snippet:
-      (row.content as string).length > SNIPPET_LENGTH
-        ? (row.content as string).slice(0, SNIPPET_LENGTH) + '…'
-        : row.content,
-    url: row.url,
-    last_updated: row.last_updated,
-  }));
-
-  return { results, count: results.length };
+  return { results: data ?? [], count: (data ?? []).length };
 }
 
 async function getDocumentContent(supabase: SupabaseClient, id: string): Promise<unknown> {
