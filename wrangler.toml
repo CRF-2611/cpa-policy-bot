@@ -16,11 +16,13 @@ crons = [
 ]
 
 [vars]
-ANTHROPIC_API_KEY          = ""
-NOTION_TOKEN               = ""
-GOOGLE_SERVICE_ACCOUNT_JSON = ""
-SUPABASE_URL               = ""
-SUPABASE_ANON_KEY          = ""
-SUPABASE_SERVICE_ROLE_KEY  = ""
-APP_PASSWORD               = ""
-SYNC_SECRET                = ""
+SUPABASE_URL      = ""
+SUPABASE_ANON_KEY = ""
+
+# Secrets — set via Cloudflare dashboard or `wrangler secret put`:
+# ANTHROPIC_API_KEY
+# NOTION_TOKEN
+# GOOGLE_SERVICE_ACCOUNT_JSON
+# SUPABASE_SERVICE_ROLE_KEY
+# APP_PASSWORD
+# SYNC_SECRET
