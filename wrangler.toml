@@ -1,25 +1,25 @@
-name = "cpa-policy-bot"
-main = "worker/src/index.ts"
-compatibility_date = "2024-09-23"
-compatibility_flags = ["nodejs_compat"]
+name                 = "cpa-policy-bot"
+main                 = "worker/src/index.ts"
+compatibility_date   = "2026-04-30"
+compatibility_flags  = ["nodejs_compat"]
 
 [assets]
 directory = "./frontend"
-binding = "ASSETS"
+binding   = "ASSETS"
 
 [triggers]
 crons = [
-  "0 * * * *",          # Every hour  — Notion Lines to Take sync
-  "0 0,6,12,18 * * *",  # Every 6h    — Google Drive briefings sync
-  "0 6 * * *"           # Daily 6am   — Parliamentary activity sync
+  "0 * * * *",          # Every hour       — Notion Lines to Take
+  "0 0,6,12,18 * * *",  # Every 6 hours    — Google Drive briefings
+  "0 6 * * *",          # Daily at 06:00   — Parliamentary activity
 ]
 
-# Secrets — set with: wrangler secret put <NAME>
-# ANTHROPIC_API_KEY
-# NOTION_TOKEN
-# GOOGLE_SERVICE_ACCOUNT_JSON
-# SUPABASE_URL
-# SUPABASE_ANON_KEY
-# SUPABASE_SERVICE_ROLE_KEY
-# APP_PASSWORD
-# SYNC_SECRET
+[vars]
+ANTHROPIC_API_KEY          = ""
+NOTION_TOKEN               = ""
+GOOGLE_SERVICE_ACCOUNT_JSON = ""
+SUPABASE_URL               = ""
+SUPABASE_ANON_KEY          = ""
+SUPABASE_SERVICE_ROLE_KEY  = ""
+APP_PASSWORD               = ""
+SYNC_SECRET                = ""
