@@ -130,7 +130,7 @@ async function runChat(
       const assistantContent: Anthropic.ContentBlock[] = [];
       if (blockText) assistantContent.push({ type: 'text', text: blockText } as Anthropic.ContentBlock);
       for (const tb of toolUseBlocks) assistantContent.push(tb);
-      conversation.push({ role: 'assistant', content: assistantContent });
+      if (assistantContent.length > 0) conversation.push({ role: 'assistant', content: assistantContent });
 
       if (stopReason === 'end_turn' || toolUseBlocks.length === 0) break;
 
@@ -151,7 +151,7 @@ async function runChat(
         }),
       );
 
-      conversation.push({ role: 'user', content: toolResults });
+      if (toolResults.length > 0) conversation.push({ role: 'user', content: toolResults });
     }
 
     if (accumulatedText) {
