@@ -75,12 +75,20 @@ export async function syncNotion(env: Env): Promise<void> {
 
   let synced = 0;
   let failed = false;
+  // Stop processing 5s before the Cloudflare Worker wall-clock limit to ensure
+  // the sync_log write always completes.
+  const deadline = Date.now() + 25_000;
 
   try {
     // Paginate through all pages accessible to this integration
     let cursor: string | undefined;
 
     do {
+      if (Date.now() > deadline) {
+        console.warn('Notion sync deadline reached — stopping early');
+        break;
+      }
+
       const body: Record<string, unknown> = {
         page_size: 100,
         filter: { property: 'object', value: 'page' },
@@ -102,36 +110,44 @@ export async function syncNotion(env: Env): Promise<void> {
 
       const data = (await res.json()) as NotionSearchResponse;
 
-      for (const page of data.results) {
-        // Fetch all block content, including nested children
-        const content = await fetchFullPageContent(page.id, headers);
-        const title = extractTitle(page.properties);
-        const topic =
-          extractSelect(page.properties, 'Topic') ??
-          extractSelect(page.properties, 'Category') ??
-          null;
-        const tags = extractMultiSelect(page.properties, 'Tags');
-        const status = extractSelect(page.properties, 'Status');
+      // Process pages in parallel batches of 5 to stay within Notion's rate
+      // limit (~3 req/s) while still being faster than sequential processing.
+      const BATCH = 5;
+      for (let i = 0; i < data.results.length; i += BATCH) {
+        if (Date.now() > deadline) break;
+        await Promise.all(
+          data.results.slice(i, i + BATCH).map(async page => {
+            const content = await fetchFullPageContent(page.id, headers);
+            const title = extractTitle(page.properties);
+            const topic =
+              extractSelect(page.properties, 'Topic') ??
+              extractSelect(page.properties, 'Category') ??
+              null;
+            const tags = extractMultiSelect(page.properties, 'Tags');
+            const status = extractSelect(page.properties, 'Status');
 
-        const { error } = await supabase.from('policy_content').upsert(
-          {
-            source: SOURCE,
-            source_id: page.id,
-            title,
-            content,
-            url: page.url,
-            last_updated: page.last_edited_time,
-            synced_at: new Date().toISOString(),
-            metadata: { topic, tags, status },
-          },
-          { onConflict: 'source,source_id' },
+            const { error } = await supabase.from('policy_content').upsert(
+              {
+                source: SOURCE,
+                source_id: page.id,
+                title,
+                content,
+                url: page.url,
+                last_updated: page.last_edited_time,
+                synced_at: new Date().toISOString(),
+                metadata: { topic, tags, status },
+              },
+              { onConflict: 'source,source_id' },
+            );
+
+            if (error) {
+              console.error(`Upsert failed for page ${page.id}:`, error.message);
+              failed = true;
+            } else {
+              synced++;
+            }
+          }),
         );
-
-        if (error) {
-          console.error(`Upsert failed for page ${page.id}:`, error.message);
-        } else {
-          synced++;
-        }
       }
 
       cursor = data.has_more && data.next_cursor ? data.next_cursor : undefined;
