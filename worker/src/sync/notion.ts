@@ -75,12 +75,26 @@ export async function syncNotion(env: Env): Promise<void> {
 
   let synced = 0;
   let failed = false;
-  // Stop processing 5s before the Cloudflare Worker wall-clock limit to ensure
-  // the sync_log write always completes.
   const deadline = Date.now() + 25_000;
 
   try {
-    // Paginate through all pages accessible to this integration
+    // Load already-synced page IDs and last successful sync time so we can
+    // skip pages that haven't changed since the previous run.
+    const [{ data: existing }, { data: lastSyncRow }] = await Promise.all([
+      supabase.from('policy_content').select('source_id').eq('source', SOURCE),
+      supabase
+        .from('sync_log')
+        .select('last_sync_at')
+        .eq('source', SOURCE)
+        .eq('status', 'success')
+        .order('last_sync_at', { ascending: false })
+        .limit(1)
+        .single(),
+    ]);
+
+    const syncedIds = new Set((existing ?? []).map(r => r.source_id));
+    const lastSyncAt = lastSyncRow?.last_sync_at ? new Date(lastSyncRow.last_sync_at) : null;
+
     let cursor: string | undefined;
 
     do {
@@ -99,6 +113,7 @@ export async function syncNotion(env: Env): Promise<void> {
         method: 'POST',
         headers,
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(8000),
       });
 
       if (!res.ok) {
@@ -110,13 +125,20 @@ export async function syncNotion(env: Env): Promise<void> {
 
       const data = (await res.json()) as NotionSearchResponse;
 
-      // Process pages in parallel batches of 5 to stay within Notion's rate
-      // limit (~3 req/s) while still being faster than sequential processing.
+      // Skip pages already in the database that haven't changed since the last
+      // successful sync — avoids re-fetching block content for every page on
+      // each hourly run once the initial load is complete.
+      const pagesToSync = data.results.filter(page => {
+        const alreadySynced = syncedIds.has(page.id);
+        const changed = !lastSyncAt || new Date(page.last_edited_time) > lastSyncAt;
+        return !alreadySynced || changed;
+      });
+
       const BATCH = 5;
-      for (let i = 0; i < data.results.length; i += BATCH) {
+      for (let i = 0; i < pagesToSync.length; i += BATCH) {
         if (Date.now() > deadline) break;
         await Promise.all(
-          data.results.slice(i, i + BATCH).map(async page => {
+          pagesToSync.slice(i, i + BATCH).map(async page => {
             const content = await fetchFullPageContent(page.id, headers);
             const title = extractTitle(page.properties);
             const topic =
@@ -177,8 +199,7 @@ async function fetchFullPageContent(
   headers: Record<string, string>,
   depth = 0,
 ): Promise<string> {
-  // Avoid runaway recursion on pathologically nested pages
-  if (depth > 3) return '';
+  if (depth > 1) return '';
 
   const blocks = await fetchAllBlocks(pageId, headers);
   const parts: string[] = [];
@@ -209,7 +230,7 @@ async function fetchAllBlocks(
     const params = new URLSearchParams({ page_size: '100' });
     if (cursor) params.set('start_cursor', cursor);
 
-    const res = await fetch(`${NOTION_BASE}/blocks/${parentId}/children?${params}`, { headers });
+    const res = await fetch(`${NOTION_BASE}/blocks/${parentId}/children?${params}`, { headers, signal: AbortSignal.timeout(8000) });
     if (!res.ok) {
       console.error(`blocks/${parentId}/children failed (${res.status})`);
       break;
