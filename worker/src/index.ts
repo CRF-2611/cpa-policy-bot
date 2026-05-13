@@ -82,7 +82,7 @@ export default {
   async scheduled(event: ScheduledEvent, env: Env): Promise<void> {
     console.log(`Scheduled trigger: ${event.cron}`);
     try {
-      if (event.cron === '0 6 * * *') {
+      if (event.cron === '0 * * * *') {
         await syncNotion(env);
       } else if (event.cron === '30 6 * * *') {
         await syncGdrive(env);
