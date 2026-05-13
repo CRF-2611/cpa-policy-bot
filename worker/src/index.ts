@@ -51,6 +51,23 @@ export default {
       return triggerSync(pathname, env, ctx);
     }
 
+    if (pathname === '/admin/notion-debug') {
+      if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+      const authErr = requireBearer(request, env.APP_PASSWORD);
+      if (authErr) return authErr;
+      const res = await fetch('https://api.notion.com/v1/search', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${env.NOTION_TOKEN}`,
+          'Notion-Version': '2022-06-28',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ page_size: 10, filter: { property: 'object', value: 'page' } }),
+      });
+      const data = await res.json();
+      return json({ notion_status: res.status, token_prefix: env.NOTION_TOKEN?.slice(0, 10), result: data });
+    }
+
     if (pathname === '/admin/sync') {
       if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
       const authErr = requireBearer(request, env.APP_PASSWORD);
