@@ -99,6 +99,7 @@ export async function syncNotion(env: Env): Promise<void> {
         method: 'POST',
         headers,
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(8000),
       });
 
       if (!res.ok) {
@@ -177,8 +178,7 @@ async function fetchFullPageContent(
   headers: Record<string, string>,
   depth = 0,
 ): Promise<string> {
-  // Avoid runaway recursion on pathologically nested pages
-  if (depth > 3) return '';
+  if (depth > 1) return '';
 
   const blocks = await fetchAllBlocks(pageId, headers);
   const parts: string[] = [];
@@ -209,7 +209,7 @@ async function fetchAllBlocks(
     const params = new URLSearchParams({ page_size: '100' });
     if (cursor) params.set('start_cursor', cursor);
 
-    const res = await fetch(`${NOTION_BASE}/blocks/${parentId}/children?${params}`, { headers });
+    const res = await fetch(`${NOTION_BASE}/blocks/${parentId}/children?${params}`, { headers, signal: AbortSignal.timeout(8000) });
     if (!res.ok) {
       console.error(`blocks/${parentId}/children failed (${res.status})`);
       break;
