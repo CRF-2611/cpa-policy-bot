@@ -134,7 +134,7 @@ export async function syncNotion(env: Env): Promise<void> {
         return !alreadySynced || changed;
       });
 
-      const BATCH = 5;
+      const BATCH = 15;
       for (let i = 0; i < pagesToSync.length; i += BATCH) {
         if (Date.now() > deadline) break;
         await Promise.all(
@@ -199,7 +199,7 @@ async function fetchFullPageContent(
   headers: Record<string, string>,
   depth = 0,
 ): Promise<string> {
-  if (depth > 1) return '';
+  if (depth > 0) return '';
 
   const blocks = await fetchAllBlocks(pageId, headers);
   const parts: string[] = [];
