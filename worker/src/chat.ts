@@ -6,14 +6,14 @@ import type { Env } from './index';
 const MAX_TOOL_ITERATIONS = 10;
 
 export async function handleChat(request: Request, env: Env): Promise<Response> {
-  let body: { session_id?: string; message?: string };
+  let body: { session_id?: string; message?: string; office?: string };
   try {
     body = await request.json();
   } catch {
     return jsonError('Invalid JSON body', 400);
   }
 
-  const { session_id, message } = body;
+  const { session_id, message, office = '' } = body;
   if (!session_id?.trim()) return jsonError('session_id is required', 400);
   if (!message?.trim()) return jsonError('message is required', 400);
 
@@ -26,7 +26,7 @@ export async function handleChat(request: Request, env: Env): Promise<Response> 
     writer.write(encoder.encode(chunk));
   };
 
-  runChat(session_id, message, env, emit).finally(() => writer.close());
+  runChat(session_id, message, office, env, emit).finally(() => writer.close());
 
   return new Response(readable, {
     headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
@@ -36,6 +36,7 @@ export async function handleChat(request: Request, env: Env): Promise<Response> 
 async function runChat(
   sessionId: string,
   userMessage: string,
+  office: string,
   env: Env,
   emit: (event: string, data: unknown) => void,
 ): Promise<void> {
@@ -43,13 +44,20 @@ async function runChat(
   const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
 
   try {
-    // Load the last 20 turns of conversation history
-    const { data: rows, error: loadError } = await supabase
-      .from('conversations')
-      .select('role, content')
-      .eq('session_id', sessionId)
-      .order('created_at', { ascending: true })
-      .limit(20);
+    // Load conversation history and upsert session record in parallel
+    const [{ data: rows, error: loadError }] = await Promise.all([
+      supabase
+        .from('conversations')
+        .select('role, content')
+        .eq('session_id', sessionId)
+        .order('created_at', { ascending: true })
+        .limit(20),
+      supabase.rpc('upsert_session', {
+        p_session_id: sessionId,
+        p_office: office,
+        p_first_msg: userMessage.slice(0, 200),
+      }),
+    ]);
 
     if (loadError) throw new Error(`Failed to load history: ${loadError.message}`);
 
