@@ -64,8 +64,7 @@
       margin-bottom: 0.4rem;
     }
 
-    .auth-card input[type=password],
-    .auth-card select {
+    .auth-card input[type=password] {
       width: 100%;
       padding: 0.6rem 0.8rem;
       border: 1.5px solid #ddd;
@@ -78,8 +77,7 @@
       transition: border-color 0.15s;
     }
 
-    .auth-card input[type=password]:focus,
-    .auth-card select:focus { border-color: #FDBB30; }
+    .auth-card input[type=password]:focus { border-color: #FDBB30; }
 
     .auth-card .primary-btn {
       width: 100%;
@@ -98,22 +96,7 @@
     .auth-card .primary-btn:hover:not(:disabled) { opacity: 0.85; }
     .auth-card .primary-btn:disabled             { opacity: 0.5; cursor: default; }
 
-    .check-label {
-      display: flex;
-      align-items: center;
-      gap: 0.45rem;
-      font-size: 0.78rem;
-      color: #666;
-      margin-top: 0.7rem;
-      cursor: pointer;
-      font-weight: normal;
-      text-transform: none;
-      letter-spacing: 0;
-    }
-
-    .check-label input[type=checkbox] { width: auto; cursor: pointer; }
-
-    #auth-error, #office-error {
+    #auth-error {
       min-height: 1.2em;
       margin-top: 0.6rem;
       font-size: 0.82rem;
@@ -529,6 +512,60 @@
     #send-btn:disabled             { background: #bbb; cursor: default; }
     #send-btn svg                  { width: 17px; height: 17px; }
 
+    /* ── Inline office attribution card ─────────────────────────────────── */
+
+    .office-bubble {
+      background: #f8f9fb;
+      border: 1px solid #e0e4ea;
+      max-width: 420px;
+      box-shadow: none;
+    }
+
+    .office-card-label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #444;
+      margin-bottom: 0.6rem;
+    }
+
+    .office-card-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .office-card-row select {
+      flex: 1;
+      min-width: 0;
+      padding: 0.38rem 0.55rem;
+      border: 1.5px solid #ddd;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-family: inherit;
+      background: #fff;
+      color: #111;
+      outline: none;
+    }
+
+    .office-card-row select:focus { border-color: #1A3A5C; }
+
+    .office-save-btn {
+      padding: 0.38rem 0.85rem;
+      background: #1A3A5C;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      font-family: inherit;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+
+    .office-save-btn:hover { background: #254e80; }
+
     /* ── Mobile overlay sidebar ──────────────────────────────────────────── */
 
     @media (max-width: 700px) {
@@ -564,25 +601,6 @@
   </div>
 </div>
 
-<!-- ── Office selection screen ──────────────────────────────────────────── -->
-<div id="office-screen">
-  <div class="auth-card">
-    <div class="auth-brand">
-      <h1>CPA Policy Bot</h1>
-      <p>Which office are you from?</p>
-    </div>
-    <label for="office-select-el">Your MP's office</label>
-    <select id="office-select-el">
-      <option value="">— Select your MP's office —</option>
-    </select>
-    <label class="check-label">
-      <input type="checkbox" id="remember-office-chk">
-      Remember this selection on this device
-    </label>
-    <button class="primary-btn" id="office-btn">Continue to Policy Bot</button>
-    <div id="office-error"></div>
-  </div>
-</div>
 
 <!-- ── Chat screen ───────────────────────────────────────────────────────── -->
 <div id="chat-screen">
@@ -831,6 +849,7 @@
     }
 
     setStatus(null);
+    isNewSession = false;
     renderSidebar();
 
     if (window.innerWidth < 700) setSidebarOpen(false);
@@ -842,56 +861,25 @@
   var messagesEl = document.getElementById('messages');
   var statusEl   = document.getElementById('status');
 
-  // Populate office dropdown
-  var selectEl = document.getElementById('office-select-el');
-  OFFICES.forEach(function (o) {
-    var opt = document.createElement('option');
-    opt.value = o;
-    opt.textContent = o;
-    selectEl.appendChild(opt);
-  });
+  var isNewSession = true;
 
   function init() {
     if (!sessionStorage.getItem('sid')) sessionStorage.setItem('sid', uuid());
     if (!sessionStorage.getItem('tok')) { showAuth(); return; }
-    if (!sessionStorage.getItem('office')) {
-      var saved = localStorage.getItem('cpa_office');
-      if (saved) {
-        sessionStorage.setItem('office', saved);
-        showChat();
-      } else {
-        showOffice();
-      }
-      return;
-    }
     showChat();
   }
 
   /* ── Auth ─────────────────────────────────────────────────────────────── */
 
   function showAuth() {
-    document.getElementById('auth-screen').style.display   = 'flex';
-    document.getElementById('office-screen').style.display = 'none';
-    document.getElementById('chat-screen').style.display   = 'none';
+    document.getElementById('auth-screen').style.display = 'flex';
+    document.getElementById('chat-screen').style.display = 'none';
     setTimeout(function () { document.getElementById('pw').focus(); }, 40);
   }
 
-  function showOffice() {
-    document.getElementById('auth-screen').style.display   = 'none';
-    document.getElementById('office-screen').style.display = 'flex';
-    document.getElementById('chat-screen').style.display   = 'none';
-    var saved = localStorage.getItem('cpa_office');
-    if (saved) {
-      document.getElementById('office-select-el').value = saved;
-      document.getElementById('remember-office-chk').checked = true;
-    }
-    setTimeout(function () { document.getElementById('office-select-el').focus(); }, 40);
-  }
-
   function showChat() {
-    document.getElementById('auth-screen').style.display   = 'none';
-    document.getElementById('office-screen').style.display = 'none';
-    document.getElementById('chat-screen').style.display   = 'flex';
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('chat-screen').style.display = 'flex';
     var office = sessionStorage.getItem('office') || '';
     document.getElementById('office-display').textContent = office || 'No office set';
     renderSidebar();
@@ -918,13 +906,7 @@
         var data = await res.json();
         sessionStorage.setItem('tok', data.token || pw);
         document.getElementById('pw').value = '';
-        var saved = localStorage.getItem('cpa_office');
-        if (saved) {
-          sessionStorage.setItem('office', saved);
-          showChat();
-        } else {
-          showOffice();
-        }
+        showChat();
       } else {
         errEl.textContent = 'Incorrect password.';
         document.getElementById('pw').value = '';
@@ -937,18 +919,71 @@
     }
   }
 
-  function selectOffice() {
-    var val   = document.getElementById('office-select-el').value;
-    var errEl = document.getElementById('office-error');
-    if (!val) { errEl.textContent = 'Please select your office.'; return; }
-    errEl.textContent = '';
-    sessionStorage.setItem('office', val);
-    if (document.getElementById('remember-office-chk').checked) {
-      localStorage.setItem('cpa_office', val);
-    } else {
-      localStorage.removeItem('cpa_office');
-    }
-    showChat();
+  /* ── Inline office attribution card ──────────────────────────────────── */
+
+  function showOfficeCard() {
+    // Remove any existing card first
+    var existing = document.getElementById('office-card-msg');
+    if (existing) existing.remove();
+
+    var wrap = document.createElement('div');
+    wrap.className = 'msg bot';
+    wrap.id = 'office-card-msg';
+
+    var bubble = document.createElement('div');
+    bubble.className = 'bubble office-bubble';
+
+    var label = document.createElement('div');
+    label.className = 'office-card-label';
+    label.textContent = 'Which office is this request from?';
+
+    var row = document.createElement('div');
+    row.className = 'office-card-row';
+
+    var sel = document.createElement('select');
+    var defOpt = document.createElement('option');
+    defOpt.value = '';
+    defOpt.textContent = '— Select your office —';
+    sel.appendChild(defOpt);
+    OFFICES.forEach(function (o) {
+      var opt = document.createElement('option');
+      opt.value = o;
+      opt.textContent = o;
+      sel.appendChild(opt);
+    });
+    var current = sessionStorage.getItem('office');
+    if (current) sel.value = current;
+
+    var btn = document.createElement('button');
+    btn.className = 'office-save-btn';
+    btn.textContent = 'Save';
+    btn.addEventListener('click', function () {
+      if (!sel.value) return;
+      saveOffice(sel.value);
+      wrap.remove();
+    });
+
+    row.appendChild(sel);
+    row.appendChild(btn);
+    bubble.appendChild(label);
+    bubble.appendChild(row);
+    wrap.appendChild(bubble);
+    messagesEl.appendChild(wrap);
+    scrollBottom();
+    setTimeout(function () { sel.focus(); }, 40);
+  }
+
+  function saveOffice(office) {
+    sessionStorage.setItem('office', office);
+    document.getElementById('office-display').textContent = office;
+    var sid = sessionStorage.getItem('sid');
+    var tok = sessionStorage.getItem('tok');
+    fetch('/session-office', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
+      body: JSON.stringify({ session_id: sid, office: office }),
+    }).catch(function () {});
+    touchSession(sid, office, null);
   }
 
   /* ── Markdown ─────────────────────────────────────────────────────────── */
@@ -1220,6 +1255,10 @@
             if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
             setStatus(null);
             finaliseBotBubble(ref.wrap, ref.bubble, ev.data.response || accumulated);
+            if (isNewSession) {
+              isNewSession = false;
+              if (!sessionStorage.getItem('office')) showOfficeCard();
+            }
 
           } else if (ev.type === 'error') {
             setStatus(null);
@@ -1249,16 +1288,19 @@
 
   document.getElementById('new-chat-btn').addEventListener('click', function () {
     sessionStorage.setItem('sid', uuid());
+    sessionStorage.removeItem('office');
     messagesEl.innerHTML = '';
     setStatus(null);
+    isNewSession = true;
+    document.getElementById('office-display').textContent = 'No office set';
     renderSidebar();
     if (window.innerWidth < 700) setSidebarOpen(false);
     document.getElementById('msg-input').focus();
   });
 
   document.getElementById('change-office-btn').addEventListener('click', function () {
-    sessionStorage.removeItem('office');
-    showOffice();
+    showOfficeCard();
+    if (window.innerWidth < 700) setSidebarOpen(false);
   });
 
   document.getElementById('sync-btn').addEventListener('click', async function () {
@@ -1286,11 +1328,6 @@
   document.getElementById('login-btn').addEventListener('click', login);
   document.getElementById('pw').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') login();
-  });
-
-  document.getElementById('office-btn').addEventListener('click', selectOffice);
-  document.getElementById('office-select-el').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') selectOffice();
   });
 
   sendBtn.addEventListener('click', send);

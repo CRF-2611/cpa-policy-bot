@@ -45,6 +45,24 @@ export default {
       return withCors(await handleChat(request, env));
     }
 
+    if (pathname === '/session-office') {
+      if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+      const authErr = requireBearer(request, env.APP_PASSWORD);
+      if (authErr) return authErr;
+      let body: { session_id?: string; office?: string };
+      try { body = await request.json(); } catch { return withCors(json({ error: 'Invalid JSON' }, 400)); }
+      if (!body.session_id?.trim() || !body.office?.trim()) {
+        return withCors(json({ error: 'session_id and office required' }, 400));
+      }
+      const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+      await supabase.rpc('upsert_session', {
+        p_session_id: body.session_id,
+        p_office: body.office,
+        p_first_msg: '',
+      });
+      return withCors(json({ ok: true }));
+    }
+
     if (pathname === '/chat-history') {
       if (request.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
       const authErr = requireBearer(request, env.APP_PASSWORD);
