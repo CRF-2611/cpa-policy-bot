@@ -866,8 +866,6 @@
   function init() {
     if (!sessionStorage.getItem('sid')) sessionStorage.setItem('sid', uuid());
     if (!sessionStorage.getItem('tok')) { showAuth(); return; }
-    var saved = localStorage.getItem('cpa_office');
-    if (saved && !sessionStorage.getItem('office')) sessionStorage.setItem('office', saved);
     showChat();
   }
 
@@ -908,8 +906,6 @@
         var data = await res.json();
         sessionStorage.setItem('tok', data.token || pw);
         document.getElementById('pw').value = '';
-        var saved = localStorage.getItem('cpa_office');
-        if (saved) sessionStorage.setItem('office', saved);
         showChat();
       } else {
         errEl.textContent = 'Incorrect password.';
@@ -979,7 +975,6 @@
 
   function saveOffice(office) {
     sessionStorage.setItem('office', office);
-    localStorage.setItem('cpa_office', office);
     document.getElementById('office-display').textContent = office;
     var sid = sessionStorage.getItem('sid');
     var tok = sessionStorage.getItem('tok');
@@ -1293,9 +1288,11 @@
 
   document.getElementById('new-chat-btn').addEventListener('click', function () {
     sessionStorage.setItem('sid', uuid());
+    sessionStorage.removeItem('office');
     messagesEl.innerHTML = '';
     setStatus(null);
     isNewSession = true;
+    document.getElementById('office-display').textContent = 'No office set';
     renderSidebar();
     if (window.innerWidth < 700) setSidebarOpen(false);
     document.getElementById('msg-input').focus();
