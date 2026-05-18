@@ -85,26 +85,30 @@ export default {
       if (request.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
       const authErr = requireBearer(request, env.APP_PASSWORD);
       if (authErr) return authErr;
-      const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-      const [byOffice, dailyVolume, recentSessions, totals] = await Promise.all([
-        supabase.rpc('analytics_by_office'),
-        supabase.rpc('analytics_daily_volume', { p_days: 30 }),
-        supabase
-          .from('sessions')
-          .select('office, first_message, created_at')
-          .neq('first_message', '')
-          .order('created_at', { ascending: false })
-          .limit(50),
-        supabase
-          .from('sessions')
-          .select('session_id', { count: 'exact', head: true }),
-      ]);
-      return withCors(json({
-        by_office: byOffice.data ?? [],
-        daily_volume: dailyVolume.data ?? [],
-        recent_sessions: recentSessions.data ?? [],
-        total_sessions: totals.count ?? 0,
-      }));
+      try {
+        const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+        const [byOffice, dailyVolume, recentSessions, totals] = await Promise.all([
+          supabase.rpc('analytics_by_office'),
+          supabase.rpc('analytics_daily_volume', { p_days: 30 }),
+          supabase
+            .from('sessions')
+            .select('office, first_message, created_at')
+            .neq('first_message', '')
+            .order('created_at', { ascending: false })
+            .limit(50),
+          supabase
+            .from('sessions')
+            .select('session_id', { count: 'exact', head: true }),
+        ]);
+        return withCors(json({
+          by_office: byOffice.data ?? [],
+          daily_volume: dailyVolume.data ?? [],
+          recent_sessions: recentSessions.data ?? [],
+          total_sessions: totals.count ?? 0,
+        }));
+      } catch (err) {
+        return withCors(json({ error: String(err) }, 500));
+      }
     }
 
     if (pathname.startsWith('/sync/')) {
