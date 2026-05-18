@@ -46,8 +46,19 @@ export async function syncParliamentary(env: Env): Promise<void> {
   const members = await fetchLibDemMembers();
   console.log(`Parliamentary sync: found ${members.length} Lib Dem members`);
 
-  await syncDebates(supabase, members);
-  await syncWrittenQuestions(supabase, members);
+  // First run: backfill 90 days. Subsequent runs: last 2 days.
+  const { count } = await supabase
+    .from('policy_content')
+    .select('*', { count: 'exact', head: true })
+    .eq('source', 'hansard');
+
+  const isFirstRun = (count ?? 0) === 0;
+  const startDate = isoDate(Date.now() - (isFirstRun ? 90 : 2) * 86_400_000);
+  const endDate = isoDate(Date.now());
+  console.log(`Parliamentary sync window: ${startDate} → ${endDate} (${isFirstRun ? 'backfill' : 'incremental'})`);
+
+  await syncDebates(supabase, members, startDate, endDate);
+  await syncWrittenQuestions(supabase, members, startDate, endDate);
 }
 
 async function fetchLibDemMembers(): Promise<MemberValue[]> {
@@ -62,8 +73,7 @@ async function fetchLibDemMembers(): Promise<MemberValue[]> {
   return data.items.map(i => i.value);
 }
 
-async function syncDebates(supabase: SupabaseClient, members: MemberValue[]): Promise<void> {
-  const yesterday = isoDate(Date.now() - 86_400_000);
+async function syncDebates(supabase: SupabaseClient, members: MemberValue[], startDate: string, endDate: string): Promise<void> {
   let synced = 0;
   let failed = false;
 
@@ -76,7 +86,7 @@ async function syncDebates(supabase: SupabaseClient, members: MemberValue[]): Pr
   try {
     for (const member of members) {
       const res = await fetch(
-        `${HANSARD_BASE}/search/contributions.json?memberId=${member.id}&startDate=${yesterday}&endDate=${yesterday}`,
+        `${HANSARD_BASE}/search/contributions.json?memberId=${member.id}&startDate=${startDate}&endDate=${endDate}`,
       );
       if (!res.ok) continue;
 
@@ -125,8 +135,7 @@ async function syncDebates(supabase: SupabaseClient, members: MemberValue[]): Pr
   console.log(`Debates sync complete: ${synced} contributions upserted`);
 }
 
-async function syncWrittenQuestions(supabase: SupabaseClient, members: MemberValue[]): Promise<void> {
-  const yesterday = isoDate(Date.now() - 86_400_000);
+async function syncWrittenQuestions(supabase: SupabaseClient, members: MemberValue[], startDate: string, endDate: string): Promise<void> {
   let synced = 0;
   let failed = false;
 
@@ -139,7 +148,7 @@ async function syncWrittenQuestions(supabase: SupabaseClient, members: MemberVal
   try {
     for (const member of members) {
       const res = await fetch(
-        `${MEMBERS_BASE}/api/Members/${member.id}/WrittenQuestions?answered=Any&dateFrom=${yesterday}&dateTo=${yesterday}&take=100`,
+        `${MEMBERS_BASE}/api/Members/${member.id}/WrittenQuestions?answered=Any&dateFrom=${startDate}&dateTo=${endDate}&take=500`,
       );
       if (!res.ok) continue;
 

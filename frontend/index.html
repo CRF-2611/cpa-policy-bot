@@ -386,8 +386,10 @@
       background: #f8f9fb;
       border: 1px solid #e0e4ea;
       border-radius: 8px;
-      overflow: hidden;
     }
+
+    .footer-body a { color: #1A3A5C; text-decoration: underline; word-break: break-all; }
+    .footer-body a:hover { color: #254e80; }
 
     details.source-footer summary {
       padding: 0.4rem 0.75rem;
@@ -538,59 +540,128 @@
     #send-btn:disabled             { background: #bbb; cursor: default; }
     #send-btn svg                  { width: 17px; height: 17px; }
 
-    /* ── Inline office attribution card ─────────────────────────────────── */
+    /* ── Modals ──────────────────────────────────────────────────────────── */
 
-    .office-bubble {
-      background: #f8f9fb;
-      border: 1px solid #e0e4ea;
-      max-width: 420px;
-      box-shadow: none;
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
     }
 
-    .office-card-label {
-      font-size: 0.82rem;
-      font-weight: 600;
-      color: #444;
+    .modal-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1.75rem 1.75rem 1.5rem;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.32);
+    }
+
+    .modal-icon {
+      font-size: 1.6rem;
       margin-bottom: 0.6rem;
     }
 
-    .office-card-row {
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
+    .modal-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #1A3A5C;
+      margin-bottom: 0.85rem;
     }
 
-    .office-card-row select {
-      flex: 1;
-      min-width: 0;
-      padding: 0.38rem 0.55rem;
+    .modal-card p {
+      font-size: 0.84rem;
+      color: #555;
+      margin-bottom: 0.7rem;
+      line-height: 1.55;
+    }
+
+    .modal-card ul {
+      margin: 0 0 1.1rem 0;
+      padding-left: 1.25rem;
+    }
+
+    .modal-card li {
+      font-size: 0.84rem;
+      color: #444;
+      margin-bottom: 0.45rem;
+      line-height: 1.5;
+    }
+
+    .modal-select {
+      width: 100%;
+      padding: 0.55rem 0.75rem;
       border: 1.5px solid #ddd;
-      border-radius: 6px;
-      font-size: 0.8rem;
+      border-radius: 7px;
+      font-size: 0.87rem;
       font-family: inherit;
       background: #fff;
       color: #111;
       outline: none;
+      margin-bottom: 0.85rem;
     }
 
-    .office-card-row select:focus { border-color: #1A3A5C; }
+    .modal-select:focus { border-color: #1A3A5C; }
 
-    .office-save-btn {
-      padding: 0.38rem 0.85rem;
-      background: #1A3A5C;
-      color: #fff;
+    .modal-primary-btn {
+      width: 100%;
+      padding: 0.65rem;
+      background: #FDBB30;
+      color: #1A3A5C;
       border: none;
-      border-radius: 6px;
-      font-size: 0.8rem;
+      border-radius: 7px;
+      font-size: 0.9rem;
       font-weight: 700;
       cursor: pointer;
-      white-space: nowrap;
       font-family: inherit;
-      flex-shrink: 0;
-      transition: background 0.15s;
+      transition: opacity 0.15s;
     }
 
-    .office-save-btn:hover { background: #254e80; }
+    .modal-primary-btn:hover:not(:disabled) { opacity: 0.85; }
+    .modal-primary-btn:disabled { opacity: 0.5; cursor: default; }
+
+    .modal-skip-btn {
+      display: block;
+      width: 100%;
+      margin-top: 0.5rem;
+      padding: 0.4rem;
+      background: none;
+      border: none;
+      font-size: 0.79rem;
+      color: #999;
+      cursor: pointer;
+      font-family: inherit;
+      text-align: center;
+    }
+
+    .modal-skip-btn:hover { color: #666; }
+
+    /* ── Message limit bar ───────────────────────────────────────────────── */
+
+    #msg-limit-bar {
+      margin: 0 1rem 0.4rem;
+      padding: 0.45rem 0.85rem;
+      background: #fff8e6;
+      border: 1px solid #f0c040;
+      border-radius: 7px;
+      font-size: 0.78rem;
+      color: #7a5500;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    #msg-limit-bar.hard {
+      background: #fef2f2;
+      border-color: #fca5a5;
+      color: #b91c1c;
+    }
 
     /* ── Mobile overlay sidebar ──────────────────────────────────────────── */
 
@@ -611,6 +682,34 @@
   </style>
 </head>
 <body>
+
+<!-- ── Disclaimer modal ─────────────────────────────────────────────────── -->
+<div id="disclaimer-modal" class="modal-overlay" style="display:none">
+  <div class="modal-card">
+    <div class="modal-icon">⚠</div>
+    <div class="modal-title">Data Protection Notice</div>
+    <p>Before using this tool, please note:</p>
+    <ul>
+      <li><strong>Do not enter constituent personal information</strong> — no names, addresses, contact details or case specifics.</li>
+      <li>Policy queries and messages you enter are <strong>stored and may be shared with the Liberal Democrats party</strong>.</li>
+      <li>This tool is for policy guidance only — not for handling constituent casework.</li>
+    </ul>
+    <button class="modal-primary-btn" id="disclaimer-btn">I understand, continue</button>
+  </div>
+</div>
+
+<!-- ── Office selection modal ───────────────────────────────────────────── -->
+<div id="office-modal" class="modal-overlay" style="display:none">
+  <div class="modal-card">
+    <div class="modal-title">Which office is this session for?</div>
+    <p>Select the MP's office making this request. This is used for usage reporting only.</p>
+    <select id="office-modal-sel" class="modal-select">
+      <option value="">— Select an office —</option>
+    </select>
+    <button class="modal-primary-btn" id="office-modal-btn">Continue</button>
+    <button class="modal-skip-btn" id="office-modal-skip">Skip for now</button>
+  </div>
+</div>
 
 <!-- ── Auth screen ──────────────────────────────────────────────────────── -->
 <div id="auth-screen">
@@ -659,6 +758,7 @@
     <!-- Main chat area -->
     <div id="chat-main">
       <div id="messages"></div>
+      <div id="msg-limit-bar"></div>
       <div id="status"></div>
       <div id="input-area">
         <div class="input-row">
@@ -861,15 +961,18 @@
       });
       if (!res.ok) throw new Error('Failed to load');
       var data = await res.json();
+      userMsgCount = 0;
       (data.messages || []).forEach(function (msg) {
         if (!msg.content) return;
         if (msg.role === 'user') {
           appendUser(msg.content);
+          userMsgCount++;
         } else if (msg.role === 'assistant') {
           var ref = createBotBubble();
           finaliseBotBubble(ref.wrap, ref.bubble, msg.content);
         }
       });
+      updateMsgLimit();
     } catch (_) {
       /* silently start with empty chat for the session */
     }
@@ -884,22 +987,64 @@
 
   /* ── Initialise ───────────────────────────────────────────────────────── */
 
-  var messagesEl = document.getElementById('messages');
-  var statusEl   = document.getElementById('status');
-
+  var messagesEl   = document.getElementById('messages');
+  var statusEl     = document.getElementById('status');
+  var limitBarEl   = document.getElementById('msg-limit-bar');
   var isNewSession = true;
+  var userMsgCount = 0;
+  var MSG_WARN     = 8;
+  var MSG_LIMIT    = 10;
+
+  function updateMsgLimit() {
+    if (userMsgCount >= MSG_LIMIT) {
+      limitBarEl.className = 'hard';
+      limitBarEl.style.display = 'flex';
+      limitBarEl.innerHTML =
+        'This conversation has reached its limit — longer chats reduce response quality. ' +
+        '<button onclick="document.getElementById(\'new-chat-btn\').click()" ' +
+        'style="background:#b91c1c;color:#fff;border:none;border-radius:5px;padding:0.2rem 0.6rem;font-size:0.75rem;cursor:pointer;flex-shrink:0;font-family:inherit;">New chat</button>';
+      inputEl.disabled = true;
+      sendBtn.disabled = true;
+    } else if (userMsgCount >= MSG_WARN) {
+      limitBarEl.className = '';
+      limitBarEl.style.display = 'flex';
+      limitBarEl.textContent = 'This conversation is getting long (' + userMsgCount + '/' + MSG_LIMIT + ' messages). Start a new chat soon for best results.';
+      inputEl.disabled = false;
+      sendBtn.disabled = false;
+    } else {
+      limitBarEl.style.display = 'none';
+      inputEl.disabled = false;
+      sendBtn.disabled = false;
+    }
+  }
 
   function init() {
     if (!sessionStorage.getItem('sid')) sessionStorage.setItem('sid', uuid());
     if (!sessionStorage.getItem('tok')) { showAuth(); return; }
+    if (!sessionStorage.getItem('disclaimer_ok')) { showDisclaimer(); return; }
     showChat();
   }
+
+  /* ── Disclaimer ───────────────────────────────────────────────────────── */
+
+  function showDisclaimer() {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('chat-screen').style.display = 'none';
+    document.getElementById('disclaimer-modal').style.display = 'flex';
+  }
+
+  document.getElementById('disclaimer-btn').addEventListener('click', function () {
+    sessionStorage.setItem('disclaimer_ok', '1');
+    document.getElementById('disclaimer-modal').style.display = 'none';
+    showChat();
+  });
 
   /* ── Auth ─────────────────────────────────────────────────────────────── */
 
   function showAuth() {
     document.getElementById('auth-screen').style.display = 'flex';
     document.getElementById('chat-screen').style.display = 'none';
+    document.getElementById('disclaimer-modal').style.display = 'none';
     setTimeout(function () { document.getElementById('pw').focus(); }, 40);
   }
 
@@ -909,6 +1054,7 @@
     var office = sessionStorage.getItem('office') || '';
     document.getElementById('office-display').textContent = office || 'No office set';
     renderSidebar();
+    if (isNewSession) showOfficeModal();
     setTimeout(function () { document.getElementById('msg-input').focus(); }, 40);
   }
 
@@ -932,6 +1078,7 @@
         var data = await res.json();
         sessionStorage.setItem('tok', data.token || pw);
         document.getElementById('pw').value = '';
+        if (!sessionStorage.getItem('disclaimer_ok')) { showDisclaimer(); return; }
         showChat();
       } else {
         errEl.textContent = 'Incorrect password.';
@@ -945,63 +1092,39 @@
     }
   }
 
-  /* ── Inline office attribution card ──────────────────────────────────── */
+  /* ── Office modal ─────────────────────────────────────────────────────── */
 
-  function showOfficeCard() {
-    // Remove any existing card first
-    var existing = document.getElementById('office-card-msg');
-    if (existing) existing.remove();
+  var officeModalSel = document.getElementById('office-modal-sel');
+  OFFICES.forEach(function (o) {
+    var opt = document.createElement('option');
+    opt.value = o;
+    opt.textContent = o;
+    officeModalSel.appendChild(opt);
+  });
 
-    var wrap = document.createElement('div');
-    wrap.className = 'msg bot';
-    wrap.id = 'office-card-msg';
-
-    var bubble = document.createElement('div');
-    bubble.className = 'bubble office-bubble';
-
-    var label = document.createElement('div');
-    label.className = 'office-card-label';
-    label.textContent = 'Which office is this request from?';
-
-    var row = document.createElement('div');
-    row.className = 'office-card-row';
-
-    var sel = document.createElement('select');
-    var defOpt = document.createElement('option');
-    defOpt.value = '';
-    defOpt.textContent = '— Select your office —';
-    sel.appendChild(defOpt);
-    OFFICES.forEach(function (o) {
-      var opt = document.createElement('option');
-      opt.value = o;
-      opt.textContent = o;
-      sel.appendChild(opt);
-    });
+  function showOfficeModal() {
     var current = sessionStorage.getItem('office');
-    if (current) sel.value = current;
-
-    var btn = document.createElement('button');
-    btn.className = 'office-save-btn';
-    btn.textContent = 'Save';
-    btn.addEventListener('click', function () {
-      if (!sel.value) return;
-      saveOffice(sel.value);
-      wrap.remove();
-    });
-
-    row.appendChild(sel);
-    row.appendChild(btn);
-    bubble.appendChild(label);
-    bubble.appendChild(row);
-    wrap.appendChild(bubble);
-    messagesEl.appendChild(wrap);
-    scrollBottom();
-    setTimeout(function () { sel.focus(); }, 40);
+    officeModalSel.value = current || '';
+    document.getElementById('office-modal').style.display = 'flex';
+    setTimeout(function () { officeModalSel.focus(); }, 40);
   }
+
+  function hideOfficeModal(office) {
+    document.getElementById('office-modal').style.display = 'none';
+    if (office) saveOffice(office);
+  }
+
+  document.getElementById('office-modal-btn').addEventListener('click', function () {
+    hideOfficeModal(officeModalSel.value || '');
+  });
+
+  document.getElementById('office-modal-skip').addEventListener('click', function () {
+    hideOfficeModal('');
+  });
 
   function saveOffice(office) {
     sessionStorage.setItem('office', office);
-    document.getElementById('office-display').textContent = office;
+    document.getElementById('office-display').textContent = office || 'No office set';
     var sid = sessionStorage.getItem('sid');
     var tok = sessionStorage.getItem('tok');
     fetch('/session-office', {
@@ -1248,6 +1371,7 @@
 
   async function send() {
     if (busy) return;
+    if (userMsgCount >= MSG_LIMIT) return;
     var text = inputEl.value.trim();
     if (!text) return;
 
@@ -1262,6 +1386,7 @@
     busy = true;
 
     appendUser(text);
+    userMsgCount++;
     touchSession(sid, office, text);
     setStatus('Thinking…');
 
@@ -1326,10 +1451,8 @@
             if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
             setStatus(null);
             finaliseBotBubble(ref.wrap, ref.bubble, ev.data.response || accumulated);
-            if (isNewSession) {
-              isNewSession = false;
-              if (!sessionStorage.getItem('office')) showOfficeCard();
-            }
+            isNewSession = false;
+            updateMsgLimit();
 
           } else if (ev.type === 'error') {
             setStatus(null);
@@ -1363,14 +1486,16 @@
     messagesEl.innerHTML = '';
     setStatus(null);
     isNewSession = true;
+    userMsgCount = 0;
+    limitBarEl.style.display = 'none';
     document.getElementById('office-display').textContent = 'No office set';
     renderSidebar();
     if (window.innerWidth < 700) setSidebarOpen(false);
-    document.getElementById('msg-input').focus();
+    showOfficeModal();
   });
 
   document.getElementById('change-office-btn').addEventListener('click', function () {
-    showOfficeCard();
+    showOfficeModal();
     if (window.innerWidth < 700) setSidebarOpen(false);
   });
 
