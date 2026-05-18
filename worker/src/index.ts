@@ -1,3 +1,4 @@
+import { createClient } from '@supabase/supabase-js';
 import { handleChat } from './chat';
 import { syncNotion } from './sync/notion';
 import { syncGdrive } from './sync/gdrive';
@@ -42,6 +43,50 @@ export default {
       const authErr = requireBearer(request, env.APP_PASSWORD);
       if (authErr) return authErr;
       return withCors(await handleChat(request, env));
+    }
+
+    if (pathname === '/chat-history') {
+      if (request.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
+      const authErr = requireBearer(request, env.APP_PASSWORD);
+      if (authErr) return authErr;
+      const sid = new URL(request.url).searchParams.get('session_id');
+      if (!sid?.trim()) return withCors(json({ error: 'session_id required' }, 400));
+      const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+      const { data, error } = await supabase
+        .from('conversations')
+        .select('role, content, created_at')
+        .eq('session_id', sid)
+        .neq('content', '')
+        .order('created_at', { ascending: true })
+        .limit(40);
+      if (error) return withCors(json({ error: error.message }, 500));
+      return withCors(json({ messages: data ?? [] }));
+    }
+
+    if (pathname === '/analytics') {
+      if (request.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
+      const authErr = requireBearer(request, env.APP_PASSWORD);
+      if (authErr) return authErr;
+      const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+      const [byOffice, dailyVolume, recentSessions, totals] = await Promise.all([
+        supabase.rpc('analytics_by_office'),
+        supabase.rpc('analytics_daily_volume', { p_days: 30 }),
+        supabase
+          .from('sessions')
+          .select('office, first_message, created_at')
+          .neq('first_message', '')
+          .order('created_at', { ascending: false })
+          .limit(50),
+        supabase
+          .from('sessions')
+          .select('session_id', { count: 'exact', head: true }),
+      ]);
+      return withCors(json({
+        by_office: byOffice.data ?? [],
+        daily_volume: dailyVolume.data ?? [],
+        recent_sessions: recentSessions.data ?? [],
+        total_sessions: totals.count ?? 0,
+      }));
     }
 
     if (pathname.startsWith('/sync/')) {

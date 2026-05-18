@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Analytics — CPA Policy Bot</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0f2f5;
+      color: #111;
+      min-height: 100dvh;
+    }
+
+    header {
+      background: #1A3A5C;
+      color: #fff;
+      padding: 0.68rem 1.4rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+    }
+
+    header h1 { font-size: 0.93rem; font-weight: 700; }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .header-btn {
+      background: none;
+      border: 1px solid rgba(255,255,255,0.35);
+      color: #fff;
+      border-radius: 6px;
+      padding: 0.22rem 0.6rem;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      transition: background 0.15s;
+    }
+    .header-btn:hover { background: rgba(255,255,255,0.12); }
+
+    .badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: #1A3A5C;
+      background: #FDBB30;
+      padding: 0.18rem 0.55rem;
+      border-radius: 20px;
+    }
+
+    .page {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 1.5rem 1.25rem 3rem;
+    }
+
+    .page-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #1A3A5C;
+      margin-bottom: 1.25rem;
+    }
+
+    /* ── Summary cards ───────────────────────────────────────────────────── */
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 0.85rem;
+      margin-bottom: 1.75rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 1rem 1.15rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
+    .card-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #888;
+      margin-bottom: 0.3rem;
+    }
+
+    .card-value {
+      font-size: 1.65rem;
+      font-weight: 800;
+      color: #1A3A5C;
+      line-height: 1.1;
+    }
+
+    .card-sub {
+      font-size: 0.72rem;
+      color: #aaa;
+      margin-top: 0.25rem;
+    }
+
+    /* ── Section blocks ──────────────────────────────────────────────────── */
+
+    .section {
+      background: #fff;
+      border-radius: 10px;
+      padding: 1.1rem 1.25rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      margin-bottom: 1.25rem;
+    }
+
+    .section-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #1A3A5C;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #f0f2f5;
+    }
+
+    /* ── Bar chart (by office) ───────────────────────────────────────────── */
+
+    .bar-chart { display: flex; flex-direction: column; gap: 0.5rem; }
+
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      font-size: 0.8rem;
+    }
+
+    .bar-label {
+      width: 220px;
+      min-width: 220px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #333;
+      font-size: 0.79rem;
+    }
+
+    .bar-track {
+      flex: 1;
+      background: #f0f2f5;
+      border-radius: 4px;
+      height: 18px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #1A3A5C, #254e80);
+      border-radius: 4px;
+      transition: width 0.6s ease;
+      min-width: 3px;
+    }
+
+    .bar-value {
+      width: 32px;
+      text-align: right;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #555;
+      flex-shrink: 0;
+    }
+
+    /* ── Daily volume chart ──────────────────────────────────────────────── */
+
+    .volume-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 3px;
+      height: 80px;
+      padding-bottom: 0;
+    }
+
+    .vol-bar {
+      flex: 1;
+      background: #FDBB30;
+      border-radius: 3px 3px 0 0;
+      min-height: 3px;
+      transition: height 0.4s ease;
+      cursor: default;
+      position: relative;
+    }
+
+    .vol-bar:hover::after {
+      content: attr(data-tip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1A3A5C;
+      color: #fff;
+      font-size: 0.65rem;
+      padding: 0.18rem 0.4rem;
+      border-radius: 4px;
+      white-space: nowrap;
+      pointer-events: none;
+      margin-bottom: 3px;
+      z-index: 10;
+    }
+
+    .vol-axis {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 0.3rem;
+      font-size: 0.63rem;
+      color: #aaa;
+    }
+
+    /* ── Recent queries table ────────────────────────────────────────────── */
+
+    .query-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+
+    .query-table th {
+      text-align: left;
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #888;
+      padding: 0.35rem 0.6rem;
+      border-bottom: 2px solid #f0f2f5;
+    }
+
+    .query-table td {
+      padding: 0.5rem 0.6rem;
+      border-bottom: 1px solid #f4f5f7;
+      vertical-align: top;
+    }
+
+    .query-table tr:last-child td { border-bottom: none; }
+    .query-table tr:hover td      { background: #fafbfc; }
+
+    .td-office  { white-space: nowrap; color: #1A3A5C; font-weight: 600; width: 220px; }
+    .td-message { color: #333; }
+    .td-date    { white-space: nowrap; color: #aaa; font-size: 0.72rem; width: 100px; text-align: right; }
+
+    /* ── Loading / error ─────────────────────────────────────────────────── */
+
+    .loading {
+      text-align: center;
+      color: #aaa;
+      padding: 3rem 1rem;
+      font-size: 0.85rem;
+    }
+
+    .error-msg {
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      border-radius: 8px;
+      padding: 1rem;
+      color: #b91c1c;
+      font-size: 0.83rem;
+    }
+
+    @media (max-width: 600px) {
+      .bar-label { width: 130px; min-width: 130px; }
+      .td-office { width: 130px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>CPA Policy Bot &mdash; Analytics</h1>
+  <div class="header-right">
+    <a href="/" class="header-btn">&larr; Back to chat</a>
+    <span class="badge">Liberal Democrats</span>
+  </div>
+</header>
+
+<div class="page">
+  <div class="page-title">Usage Dashboard</div>
+  <div id="content"><div class="loading">Loading analytics…</div></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var tok = sessionStorage.getItem('tok');
+  if (!tok) { window.location.href = '/'; return; }
+
+  function esc(s) {
+    return String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  function fmtShortDate(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  }
+
+  async function load() {
+    var contentEl = document.getElementById('content');
+    try {
+      var res = await fetch('/analytics', {
+        headers: { 'Authorization': 'Bearer ' + tok },
+      });
+      if (res.status === 401) { window.location.href = '/'; return; }
+      if (!res.ok) throw new Error('Server error ' + res.status);
+
+      var d = await res.json();
+      render(d);
+    } catch (err) {
+      contentEl.innerHTML = '<div class="error-msg">Failed to load analytics: ' + esc(err.message) + '</div>';
+    }
+  }
+
+  function render(d) {
+    var byOffice      = d.by_office      || [];
+    var dailyVolume   = d.daily_volume   || [];
+    var recentSessions = d.recent_sessions || [];
+    var totalSessions = d.total_sessions  || 0;
+
+    var thisWeekCount = dailyVolume
+      .filter(function (r) {
+        return new Date(r.day) >= new Date(Date.now() - 7 * 86400000);
+      })
+      .reduce(function (sum, r) { return sum + Number(r.count); }, 0);
+
+    var activeOffices = byOffice.length;
+
+    var topOffice = byOffice.length > 0
+      ? byOffice[0].office.split('–')[0].trim()
+      : '—';
+
+    /* ── Cards ── */
+    var cardsHtml =
+      '<div class="cards">' +
+        card('Total sessions', totalSessions, 'all time') +
+        card('This week', thisWeekCount, 'last 7 days') +
+        card('Active offices', activeOffices, 'have used the bot') +
+        card('Most active', topOffice, 'office by sessions') +
+      '</div>';
+
+    /* ── By office bar chart ── */
+    var maxCount = byOffice.length > 0 ? Number(byOffice[0].session_count) : 1;
+    var barsHtml = byOffice.length === 0
+      ? '<p style="color:#aaa;font-size:0.82rem;">No data yet — sessions will appear here once offices start using the bot.</p>'
+      : byOffice.map(function (row) {
+          var pct = Math.max(2, Math.round(Number(row.session_count) / maxCount * 100));
+          return '<div class="bar-row">' +
+            '<div class="bar-label" title="' + esc(row.office) + '">' + esc(row.office) + '</div>' +
+            '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%"></div></div>' +
+            '<div class="bar-value">' + row.session_count + '</div>' +
+          '</div>';
+        }).join('');
+
+    var officeSection =
+      '<div class="section">' +
+        '<div class="section-title">Sessions by office</div>' +
+        '<div class="bar-chart">' + barsHtml + '</div>' +
+      '</div>';
+
+    /* ── Daily volume chart ── */
+    var volSection = '';
+    if (dailyVolume.length > 0) {
+      var maxVol = Math.max.apply(null, dailyVolume.map(function (r) { return Number(r.count); }));
+      if (maxVol === 0) maxVol = 1;
+
+      var volBars = dailyVolume.map(function (r) {
+        var pct = Math.max(4, Math.round(Number(r.count) / maxVol * 100));
+        var tip = fmtShortDate(r.day) + ': ' + r.count + ' session' + (r.count === 1 ? '' : 's');
+        return '<div class="vol-bar" style="height:' + pct + '%" data-tip="' + esc(tip) + '"></div>';
+      }).join('');
+
+      var firstDay = fmtShortDate(dailyVolume[0].day);
+      var lastDay  = fmtShortDate(dailyVolume[dailyVolume.length - 1].day);
+
+      volSection =
+        '<div class="section">' +
+          '<div class="section-title">Daily activity (last 30 days)</div>' +
+          '<div class="volume-chart">' + volBars + '</div>' +
+          '<div class="vol-axis"><span>' + esc(firstDay) + '</span><span>' + esc(lastDay) + '</span></div>' +
+        '</div>';
+    }
+
+    /* ── Recent queries table ── */
+    var rowsHtml = recentSessions.length === 0
+      ? '<tr><td colspan="3" style="text-align:center;color:#aaa;padding:1.5rem;">No queries recorded yet.</td></tr>'
+      : recentSessions.map(function (s) {
+          return '<tr>' +
+            '<td class="td-office">' + esc(s.office || '—') + '</td>' +
+            '<td class="td-message">' + esc(s.first_message || '—') + '</td>' +
+            '<td class="td-date">'   + fmtDate(s.created_at) + '</td>' +
+          '</tr>';
+        }).join('');
+
+    var querySection =
+      '<div class="section">' +
+        '<div class="section-title">Recent queries</div>' +
+        '<table class="query-table">' +
+          '<thead><tr>' +
+            '<th>Office</th>' +
+            '<th>First message</th>' +
+            '<th style="text-align:right">Date</th>' +
+          '</tr></thead>' +
+          '<tbody>' + rowsHtml + '</tbody>' +
+        '</table>' +
+      '</div>';
+
+    document.getElementById('content').innerHTML =
+      cardsHtml + officeSection + volSection + querySection;
+  }
+
+  function card(label, value, sub) {
+    return '<div class="card">' +
+      '<div class="card-label">' + esc(label) + '</div>' +
+      '<div class="card-value">' + esc(String(value)) + '</div>' +
+      '<div class="card-sub">'  + esc(sub) + '</div>' +
+    '</div>';
+  }
+
+  load();
+}());
+</script>
+</body>
+</html>

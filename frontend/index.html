@@ -14,11 +14,12 @@
       height: 100dvh;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
     }
 
-    /* ── Auth screen ──────────────────────────────────────────────────────── */
+    /* ── Auth / Office screens ───────────────────────────────────────────── */
 
-    #auth-screen {
+    #auth-screen, #office-screen {
       display: flex;
       align-items: center;
       justify-content: center;
@@ -63,19 +64,24 @@
       margin-bottom: 0.4rem;
     }
 
-    .auth-card input {
+    .auth-card input[type=password],
+    .auth-card select {
       width: 100%;
       padding: 0.6rem 0.8rem;
       border: 1.5px solid #ddd;
       border-radius: 6px;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
+      font-family: inherit;
+      background: #fff;
+      color: #111;
       outline: none;
       transition: border-color 0.15s;
     }
 
-    .auth-card input:focus { border-color: #FDBB30; }
+    .auth-card input[type=password]:focus,
+    .auth-card select:focus { border-color: #FDBB30; }
 
-    .auth-card button {
+    .auth-card .primary-btn {
       width: 100%;
       margin-top: 0.9rem;
       padding: 0.65rem;
@@ -89,10 +95,25 @@
       transition: opacity 0.15s;
     }
 
-    .auth-card button:hover:not(:disabled) { opacity: 0.85; }
-    .auth-card button:disabled             { opacity: 0.5; cursor: default; }
+    .auth-card .primary-btn:hover:not(:disabled) { opacity: 0.85; }
+    .auth-card .primary-btn:disabled             { opacity: 0.5; cursor: default; }
 
-    #auth-error {
+    .check-label {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.78rem;
+      color: #666;
+      margin-top: 0.7rem;
+      cursor: pointer;
+      font-weight: normal;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .check-label input[type=checkbox] { width: auto; cursor: pointer; }
+
+    #auth-error, #office-error {
       min-height: 1.2em;
       margin-top: 0.6rem;
       font-size: 0.82rem;
@@ -100,26 +121,42 @@
       text-align: center;
     }
 
-    /* ── Chat screen ──────────────────────────────────────────────────────── */
+    /* ── Chat screen layout ──────────────────────────────────────────────── */
 
     #chat-screen {
       display: none;
       flex-direction: column;
       height: 100dvh;
+      overflow: hidden;
     }
 
     header {
       background: #1A3A5C;
       color: #fff;
-      padding: 0.68rem 1.2rem;
+      padding: 0.68rem 1rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
       flex-shrink: 0;
       box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+      gap: 0.5rem;
     }
 
-    header h1 { font-size: 0.93rem; font-weight: 700; }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      min-width: 0;
+    }
+
+    header h1 { font-size: 0.93rem; font-weight: 700; white-space: nowrap; }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
 
     header .badge {
       font-size: 0.68rem;
@@ -128,21 +165,165 @@
       background: #FDBB30;
       padding: 0.18rem 0.55rem;
       border-radius: 20px;
+      white-space: nowrap;
     }
 
-    #sync-btn {
+    .header-icon-btn {
       background: none;
       border: 1px solid rgba(255,255,255,0.35);
       color: #fff;
       border-radius: 6px;
-      padding: 0.25rem 0.6rem;
-      font-size: 0.72rem;
+      padding: 0.22rem 0.55rem;
+      font-size: 0.8rem;
       font-weight: 600;
       cursor: pointer;
       transition: background 0.15s;
+      white-space: nowrap;
     }
-    #sync-btn:hover:not(:disabled) { background: rgba(255,255,255,0.12); }
-    #sync-btn:disabled { opacity: 0.5; cursor: default; }
+
+    .header-icon-btn:hover:not(:disabled) { background: rgba(255,255,255,0.12); }
+    .header-icon-btn:disabled             { opacity: 0.5; cursor: default; }
+
+    #sidebar-toggle {
+      font-size: 1.1rem;
+      padding: 0.15rem 0.45rem;
+      line-height: 1;
+    }
+
+    /* ── Chat body (sidebar + main) ──────────────────────────────────────── */
+
+    #chat-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    /* ── Sidebar ─────────────────────────────────────────────────────────── */
+
+    #sidebar {
+      width: 252px;
+      min-width: 252px;
+      background: #152234;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: width 0.22s ease, min-width 0.22s ease;
+      border-right: 1px solid rgba(255,255,255,0.06);
+      flex-shrink: 0;
+    }
+
+    #sidebar.collapsed {
+      width: 0;
+      min-width: 0;
+    }
+
+    #sidebar-header {
+      padding: 0.65rem 0.65rem 0.5rem;
+      flex-shrink: 0;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+
+    #new-chat-btn {
+      width: 100%;
+      padding: 0.48rem 0.7rem;
+      background: rgba(253,187,48,0.14);
+      border: 1px solid rgba(253,187,48,0.4);
+      color: #FDBB30;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.15s;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+
+    #new-chat-btn:hover { background: rgba(253,187,48,0.24); }
+
+    #session-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.35rem 0;
+    }
+
+    #session-list::-webkit-scrollbar       { width: 3px; }
+    #session-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 3px; }
+
+    .session-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 0.5rem 0.75rem;
+      background: none;
+      border: none;
+      border-left: 3px solid transparent;
+      cursor: pointer;
+      transition: background 0.1s;
+      font-family: inherit;
+      min-width: 0;
+    }
+
+    .session-item:hover  { background: rgba(255,255,255,0.06); }
+    .session-item.active { background: rgba(255,255,255,0.1); border-left-color: #FDBB30; }
+
+    .session-preview {
+      font-size: 0.77rem;
+      color: #c8d0db;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.35;
+    }
+
+    .session-meta {
+      font-size: 0.66rem;
+      color: #6b7888;
+      margin-top: 0.12rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #sidebar-footer {
+      padding: 0.6rem 0.75rem;
+      border-top: 1px solid rgba(255,255,255,0.07);
+      flex-shrink: 0;
+    }
+
+    #office-display {
+      font-size: 0.7rem;
+      color: #8b9aaa;
+      margin-bottom: 0.3rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #change-office-btn {
+      background: none;
+      border: none;
+      color: #5a6a7a;
+      font-size: 0.7rem;
+      font-family: inherit;
+      cursor: pointer;
+      padding: 0;
+      text-decoration: underline;
+    }
+
+    #change-office-btn:hover { color: #9aaabb; }
+
+    /* ── Chat main ───────────────────────────────────────────────────────── */
+
+    #chat-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      overflow: hidden;
+      background: #f0f2f5;
+    }
 
     /* ── Messages ─────────────────────────────────────────────────────────── */
 
@@ -347,6 +528,23 @@
     #send-btn:hover:not(:disabled) { background: #254e80; }
     #send-btn:disabled             { background: #bbb; cursor: default; }
     #send-btn svg                  { width: 17px; height: 17px; }
+
+    /* ── Mobile overlay sidebar ──────────────────────────────────────────── */
+
+    @media (max-width: 700px) {
+      #sidebar:not(.collapsed) {
+        position: fixed;
+        z-index: 200;
+        top: 0;
+        left: 0;
+        height: 100dvh;
+        width: 252px !important;
+        min-width: 252px !important;
+        box-shadow: 4px 0 20px rgba(0,0,0,0.45);
+      }
+
+      header .badge { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -361,42 +559,161 @@
     <label for="pw">Password</label>
     <input type="password" id="pw" placeholder="Enter access password"
            autocomplete="current-password">
-    <button id="login-btn">Sign in</button>
+    <button class="primary-btn" id="login-btn">Sign in</button>
     <div id="auth-error"></div>
+  </div>
+</div>
+
+<!-- ── Office selection screen ──────────────────────────────────────────── -->
+<div id="office-screen">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <h1>CPA Policy Bot</h1>
+      <p>Which office are you from?</p>
+    </div>
+    <label for="office-select-el">Your MP's office</label>
+    <select id="office-select-el">
+      <option value="">— Select your MP's office —</option>
+    </select>
+    <label class="check-label">
+      <input type="checkbox" id="remember-office-chk">
+      Remember this selection on this device
+    </label>
+    <button class="primary-btn" id="office-btn">Continue to Policy Bot</button>
+    <div id="office-error"></div>
   </div>
 </div>
 
 <!-- ── Chat screen ───────────────────────────────────────────────────────── -->
 <div id="chat-screen">
   <header>
-    <h1>CPA Policy Bot</h1>
-    <div style="display:flex;align-items:center;gap:0.6rem;">
-      <button id="sync-btn" title="Sync all data sources now">Sync data</button>
+    <div class="header-left">
+      <button id="sidebar-toggle" class="header-icon-btn" title="Toggle history">&#9776;</button>
+      <h1>CPA Policy Bot</h1>
+    </div>
+    <div class="header-right">
+      <a href="/analytics.html" class="header-icon-btn" style="text-decoration:none;">Analytics</a>
+      <button id="sync-btn" class="header-icon-btn" title="Sync all data sources now">Sync data</button>
       <span class="badge">Liberal Democrats</span>
     </div>
   </header>
 
-  <div id="messages"></div>
-  <div id="status"></div>
+  <div id="chat-body">
 
-  <div id="input-area">
-    <div class="input-row">
-      <textarea id="msg-input" rows="1"
-        placeholder="Ask a policy question or paste a constituent email…"></textarea>
-      <button id="send-btn" aria-label="Send">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="22" y1="2" x2="11" y2="13"/>
-          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-        </svg>
-      </button>
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <div id="sidebar-header">
+        <button id="new-chat-btn">+ New chat</button>
+      </div>
+      <div id="session-list"></div>
+      <div id="sidebar-footer">
+        <div id="office-display"></div>
+        <button id="change-office-btn">Change office</button>
+      </div>
     </div>
+
+    <!-- Main chat area -->
+    <div id="chat-main">
+      <div id="messages"></div>
+      <div id="status"></div>
+      <div id="input-area">
+        <div class="input-row">
+          <textarea id="msg-input" rows="1"
+            placeholder="Ask a policy question or paste a constituent email…"></textarea>
+          <button id="send-btn" aria-label="Send">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
 <script>
 (function () {
   'use strict';
+
+  /* ── MP office list ───────────────────────────────────────────────────── */
+
+  var OFFICES = [
+    'Gideon Amos – Taunton and Wellington',
+    'Steff Aquarone – North Norfolk',
+    'Josh Babarinde – Eastbourne',
+    'Alison Bennett – Mid Sussex',
+    'Alex Brewer – North East Hampshire',
+    'Jess Brown-Fuller – Chichester',
+    'Charlotte Cane – Ely and East Cambridgeshire',
+    'Alistair Carmichael – Orkney and Shetland',
+    'David Chadwick – Brecon, Radnor and Cwm Tawe',
+    'Wendy Chamberlain – North East Fife',
+    'Dr Danny Chambers – Winchester',
+    'Chris Coghlan – Dorking and Horley',
+    'Victoria Collins – Harpenden and Berkhamsted',
+    'Daisy Cooper – St Albans',
+    'Adam Dance – Yeovil',
+    'Steve Darling – Torbay',
+    'Ed Davey – Kingston and Surbiton',
+    'Bobby Dean – Carshalton and Wallington',
+    'Lee Dillon – Newbury',
+    'Sarah Dyke – Glastonbury and Somerton',
+    'Tim Farron – Westmorland and Lonsdale',
+    'Richard Foord – Honiton and Sidmouth',
+    'Will Forster – Woking',
+    'Zöe Franklin – Guildford',
+    'Andrew George – St Ives',
+    'Sarah Gibson – Chippenham',
+    'Rachel Gilmour – Tiverton and Minehead',
+    'Olly Glover – Didcot and Wantage',
+    'Marie Goldman – Chelmsford',
+    'Tom Gordon – Harrogate and Knaresborough',
+    'Sarah Green – Chesham and Amersham',
+    'Monica Harding – Esher and Walton',
+    'Pippa Heylings – South Cambridgeshire',
+    'Wera Hobhouse – Bath',
+    'Christine Jardine – Edinburgh West',
+    'Liz Jarvis – Eastleigh',
+    'Clive Jones – Wokingham',
+    'Paul Kohler – Wimbledon',
+    'James MacCleary – Lewes',
+    'Angus MacDonald – Inverness, Skye and West Ross-shire',
+    'Ben Maguire – North Cornwall',
+    'Helen Maguire – Epsom and Ewell',
+    'Mike Martin – Tunbridge Wells',
+    'Brian Mathew – Melksham and Devizes',
+    'Charlie Maynard – Witney',
+    'Calum Miller – Bicester and Woodstock',
+    'John Milne – Horsham',
+    'Freddie van Mierlo – Henley and Thame',
+    'Helen Morgan – North Shropshire',
+    'Edward Morello – West Dorset',
+    'Tom Morrison – Cheadle',
+    'Layla Moran – Oxford West and Abingdon',
+    'Tessa Munt – Wells and Mendip Hills',
+    'Susan Murray – Mid Dunbartonshire',
+    'Sarah Olney – Richmond Park',
+    'Manuela Perteghella – Stratford-on-Avon',
+    'Dr Al Pinkerton – Surrey Heath',
+    'Joshua Reynolds – Maidenhead',
+    'Ian Roome – North Devon',
+    'Anna Sabine – Frome and East Somerset',
+    'Dr Roz Savage – South Cotswolds',
+    'Vikki Slade – Mid Dorset and North Poole',
+    'Lisa Smart – Hazel Grove',
+    'Ian Sollom – St Neots and Mid Cambridgeshire',
+    'Jamie Stone – Caithness, Sutherland and Easter Ross',
+    'Luke Taylor – Sutton and Cheam',
+    'Cameron Thomas – Tewkesbury',
+    'Caroline Voaden – South Devon',
+    'Max Wilkinson – Cheltenham',
+    'Munira Wilson – Twickenham',
+    'Martin Wrigley – Newton Abbot',
+    'Claire Young – Thornbury and Yate',
+  ];
 
   /* ── Helpers ──────────────────────────────────────────────────────────── */
 
@@ -415,27 +732,169 @@
       .replace(/"/g, '&quot;');
   }
 
+  function timeAgo(ts) {
+    var diff = Date.now() - ts;
+    if (diff < 60000)    return 'just now';
+    if (diff < 3600000)  return Math.floor(diff / 60000) + 'm ago';
+    if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+    return Math.floor(diff / 86400000) + 'd ago';
+  }
+
+  /* ── Session storage (localStorage) ──────────────────────────────────── */
+
+  function getSessions() {
+    try { return JSON.parse(localStorage.getItem('cpa_sessions') || '[]'); }
+    catch (_) { return []; }
+  }
+
+  function saveSessions(list) {
+    localStorage.setItem('cpa_sessions', JSON.stringify(list.slice(0, 30)));
+  }
+
+  function touchSession(sessionId, office, firstMessage) {
+    var list = getSessions();
+    var idx  = list.findIndex(function (s) { return s.id === sessionId; });
+    if (idx >= 0) {
+      list[idx].office = office || list[idx].office;
+      list[idx].ts     = Date.now();
+      list.unshift(list.splice(idx, 1)[0]);
+    } else {
+      list.unshift({ id: sessionId, office: office, preview: (firstMessage || '').slice(0, 80), ts: Date.now() });
+    }
+    saveSessions(list);
+    renderSidebar();
+  }
+
+  /* ── Sidebar ──────────────────────────────────────────────────────────── */
+
+  var sidebarEl  = document.getElementById('sidebar');
+  var sidebarOpen = window.innerWidth >= 700;
+
+  function setSidebarOpen(open) {
+    sidebarOpen = open;
+    sidebarEl.classList.toggle('collapsed', !open);
+  }
+
+  setSidebarOpen(sidebarOpen);
+
+  function renderSidebar() {
+    var list    = getSessions();
+    var listEl  = document.getElementById('session-list');
+    var currSid = sessionStorage.getItem('sid');
+    listEl.innerHTML = '';
+
+    if (list.length === 0) {
+      var empty = document.createElement('div');
+      empty.style.cssText = 'padding:0.75rem;font-size:0.74rem;color:#5a6a7a;text-align:center;';
+      empty.textContent = 'No previous chats';
+      listEl.appendChild(empty);
+      return;
+    }
+
+    list.forEach(function (s) {
+      var btn = document.createElement('button');
+      btn.className = 'session-item' + (s.id === currSid ? ' active' : '');
+      btn.dataset.sid = s.id;
+      btn.innerHTML =
+        '<div class="session-preview">' + esc(s.preview || 'New conversation') + '</div>' +
+        '<div class="session-meta">' + esc(s.office || 'Unknown office') + ' &middot; ' + timeAgo(s.ts) + '</div>';
+      btn.addEventListener('click', function () { loadSession(s.id); });
+      listEl.appendChild(btn);
+    });
+  }
+
+  /* ── Load a previous session ──────────────────────────────────────────── */
+
+  async function loadSession(sessionId) {
+    sessionStorage.setItem('sid', sessionId);
+    messagesEl.innerHTML = '';
+    setStatus('Loading conversation…');
+
+    var tok = sessionStorage.getItem('tok');
+    try {
+      var res = await fetch('/chat-history?session_id=' + encodeURIComponent(sessionId), {
+        headers: { 'Authorization': 'Bearer ' + tok },
+      });
+      if (!res.ok) throw new Error('Failed to load');
+      var data = await res.json();
+      (data.messages || []).forEach(function (msg) {
+        if (!msg.content) return;
+        if (msg.role === 'user') {
+          appendUser(msg.content);
+        } else if (msg.role === 'assistant') {
+          var ref = createBotBubble();
+          finaliseBotBubble(ref.wrap, ref.bubble, msg.content);
+        }
+      });
+    } catch (_) {
+      /* silently start with empty chat for the session */
+    }
+
+    setStatus(null);
+    renderSidebar();
+
+    if (window.innerWidth < 700) setSidebarOpen(false);
+    document.getElementById('msg-input').focus();
+  }
+
   /* ── Initialise ───────────────────────────────────────────────────────── */
 
   var messagesEl = document.getElementById('messages');
   var statusEl   = document.getElementById('status');
 
+  // Populate office dropdown
+  var selectEl = document.getElementById('office-select-el');
+  OFFICES.forEach(function (o) {
+    var opt = document.createElement('option');
+    opt.value = o;
+    opt.textContent = o;
+    selectEl.appendChild(opt);
+  });
+
   function init() {
     if (!sessionStorage.getItem('sid')) sessionStorage.setItem('sid', uuid());
-    sessionStorage.getItem('tok') ? showChat() : showAuth();
+    if (!sessionStorage.getItem('tok')) { showAuth(); return; }
+    if (!sessionStorage.getItem('office')) {
+      var saved = localStorage.getItem('cpa_office');
+      if (saved) {
+        sessionStorage.setItem('office', saved);
+        showChat();
+      } else {
+        showOffice();
+      }
+      return;
+    }
+    showChat();
   }
 
   /* ── Auth ─────────────────────────────────────────────────────────────── */
 
   function showAuth() {
-    document.getElementById('auth-screen').style.display = 'flex';
-    document.getElementById('chat-screen').style.display = 'none';
+    document.getElementById('auth-screen').style.display   = 'flex';
+    document.getElementById('office-screen').style.display = 'none';
+    document.getElementById('chat-screen').style.display   = 'none';
     setTimeout(function () { document.getElementById('pw').focus(); }, 40);
   }
 
+  function showOffice() {
+    document.getElementById('auth-screen').style.display   = 'none';
+    document.getElementById('office-screen').style.display = 'flex';
+    document.getElementById('chat-screen').style.display   = 'none';
+    var saved = localStorage.getItem('cpa_office');
+    if (saved) {
+      document.getElementById('office-select-el').value = saved;
+      document.getElementById('remember-office-chk').checked = true;
+    }
+    setTimeout(function () { document.getElementById('office-select-el').focus(); }, 40);
+  }
+
   function showChat() {
-    document.getElementById('auth-screen').style.display = 'none';
-    document.getElementById('chat-screen').style.display = 'flex';
+    document.getElementById('auth-screen').style.display   = 'none';
+    document.getElementById('office-screen').style.display = 'none';
+    document.getElementById('chat-screen').style.display   = 'flex';
+    var office = sessionStorage.getItem('office') || '';
+    document.getElementById('office-display').textContent = office || 'No office set';
+    renderSidebar();
     setTimeout(function () { document.getElementById('msg-input').focus(); }, 40);
   }
 
@@ -459,7 +918,13 @@
         var data = await res.json();
         sessionStorage.setItem('tok', data.token || pw);
         document.getElementById('pw').value = '';
-        showChat();
+        var saved = localStorage.getItem('cpa_office');
+        if (saved) {
+          sessionStorage.setItem('office', saved);
+          showChat();
+        } else {
+          showOffice();
+        }
       } else {
         errEl.textContent = 'Incorrect password.';
         document.getElementById('pw').value = '';
@@ -472,13 +937,25 @@
     }
   }
 
+  function selectOffice() {
+    var val   = document.getElementById('office-select-el').value;
+    var errEl = document.getElementById('office-error');
+    if (!val) { errEl.textContent = 'Please select your office.'; return; }
+    errEl.textContent = '';
+    sessionStorage.setItem('office', val);
+    if (document.getElementById('remember-office-chk').checked) {
+      localStorage.setItem('cpa_office', val);
+    } else {
+      localStorage.removeItem('cpa_office');
+    }
+    showChat();
+  }
+
   /* ── Markdown ─────────────────────────────────────────────────────────── */
 
   function renderMarkdown(text) {
-    // Protect fenced code blocks
     var fences = [];
     text = text.replace(/```([\s\S]*?)```/g, function (_, body) {
-      // Strip optional language tag from first line
       body = body.replace(/^[a-z]*\n/, '').trim();
       fences.push(body);
       return '\x00F' + (fences.length - 1) + '\x00';
@@ -486,7 +963,6 @@
 
     var html = renderLines(text);
 
-    // Restore code blocks
     html = html.replace(/\x00F(\d+)\x00/g, function (_, i) {
       return '<pre><code>' + esc(fences[+i]) + '</code></pre>';
     });
@@ -496,7 +972,7 @@
   function renderLines(text) {
     var lines  = text.split('\n');
     var out    = [];
-    var list   = null; // 'ul' | 'ol' | null
+    var list   = null;
 
     function closeList() {
       if (list) { out.push('</' + list + '>'); list = null; }
@@ -506,10 +982,8 @@
       var raw = lines[i];
       var t   = raw.trim();
 
-      // Blank line
       if (!t) { closeList(); out.push('<br>'); continue; }
 
-      // Heading
       var hm = t.match(/^(#{1,3})\s+(.*)/);
       if (hm) {
         closeList();
@@ -518,14 +992,11 @@
         continue;
       }
 
-      // Horizontal rule
       if (/^---+$/.test(t)) { closeList(); out.push('<hr>'); continue; }
 
-      // Blockquote
       var bq = t.match(/^>\s?(.*)/);
       if (bq) { closeList(); out.push('<blockquote>' + span(bq[1]) + '</blockquote>'); continue; }
 
-      // Unordered list
       var ul = t.match(/^[-*]\s+(.*)/);
       if (ul) {
         if (list !== 'ul') { closeList(); out.push('<ul>'); list = 'ul'; }
@@ -533,7 +1004,6 @@
         continue;
       }
 
-      // Ordered list
       var ol = t.match(/^\d+\.\s+(.*)/);
       if (ol) {
         if (list !== 'ol') { closeList(); out.push('<ol>'); list = 'ol'; }
@@ -541,9 +1011,8 @@
         continue;
       }
 
-      // Table row
       if (t.charAt(0) === '|' && t.charAt(t.length - 1) === '|') {
-        if (/^\|[-| :]+\|$/.test(t)) { continue; } // separator row
+        if (/^\|[-| :]+\|$/.test(t)) { continue; }
         closeList();
         var cells = t.slice(1, -1).split('|')
           .map(function (c) { return '<td>' + span(c.trim()) + '</td>'; });
@@ -559,7 +1028,6 @@
     return out.join('');
   }
 
-  // Inline formatting — always escape HTML first for safety
   function span(s) {
     s = esc(s);
     s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
@@ -574,7 +1042,6 @@
 
   /* ── Footer splitting ─────────────────────────────────────────────────── */
 
-  // The last '---' divider separates response body from source attribution
   function splitFooter(text) {
     var idx = text.lastIndexOf('\n---\n');
     if (idx === -1) return { main: text, footer: null };
@@ -612,7 +1079,6 @@
     scrollBottom();
   }
 
-  // Returns { wrap, bubble } for incremental updates during streaming
   function createBotBubble() {
     var wrap   = document.createElement('div');
     wrap.className = 'msg bot';
@@ -624,7 +1090,6 @@
     return { wrap: wrap, bubble: bubble };
   }
 
-  // Called on 'done' — renders markdown and attaches the collapsible footer
   function finaliseBotBubble(wrap, bubble, text) {
     var parts = splitFooter(text);
     bubble.innerHTML = renderMarkdown(parts.main);
@@ -680,23 +1145,24 @@
     var text = inputEl.value.trim();
     if (!text) return;
 
-    var tok = sessionStorage.getItem('tok');
-    var sid = sessionStorage.getItem('sid');
+    var tok    = sessionStorage.getItem('tok');
+    var sid    = sessionStorage.getItem('sid');
+    var office = sessionStorage.getItem('office') || '';
 
-    inputEl.value    = '';
-    inputEl.style.height = 'auto';
-    inputEl.disabled = true;
-    sendBtn.disabled = true;
+    inputEl.value         = '';
+    inputEl.style.height  = 'auto';
+    inputEl.disabled      = true;
+    sendBtn.disabled      = true;
     busy = true;
 
     appendUser(text);
+    touchSession(sid, office, text);
     setStatus('Thinking…');
 
     var ref         = createBotBubble();
     var accumulated = '';
     var rafId       = null;
 
-    // Batch DOM updates to once per animation frame for smooth streaming
     function scheduleRender() {
       if (rafId) return;
       rafId = requestAnimationFrame(function () {
@@ -713,7 +1179,7 @@
           'Content-Type':  'application/json',
           'Authorization': 'Bearer ' + tok,
         },
-        body: JSON.stringify({ session_id: sid, message: text }),
+        body: JSON.stringify({ session_id: sid, message: text, office: office }),
       });
 
       if (res.status === 401) {
@@ -777,32 +1243,54 @@
 
   /* ── Event listeners ──────────────────────────────────────────────────── */
 
-  var syncBtn = document.getElementById('sync-btn');
-  syncBtn.addEventListener('click', async function () {
+  document.getElementById('sidebar-toggle').addEventListener('click', function () {
+    setSidebarOpen(!sidebarOpen);
+  });
+
+  document.getElementById('new-chat-btn').addEventListener('click', function () {
+    sessionStorage.setItem('sid', uuid());
+    messagesEl.innerHTML = '';
+    setStatus(null);
+    renderSidebar();
+    if (window.innerWidth < 700) setSidebarOpen(false);
+    document.getElementById('msg-input').focus();
+  });
+
+  document.getElementById('change-office-btn').addEventListener('click', function () {
+    sessionStorage.removeItem('office');
+    showOffice();
+  });
+
+  document.getElementById('sync-btn').addEventListener('click', async function () {
     var tok = sessionStorage.getItem('tok');
     if (!tok) return;
-    syncBtn.disabled = true;
-    syncBtn.textContent = 'Syncing…';
+    var btn = document.getElementById('sync-btn');
+    btn.disabled = true;
+    btn.textContent = 'Syncing…';
     try {
       var res = await fetch('/admin/sync', {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + tok },
       });
-      syncBtn.textContent = res.ok ? 'Sync started ✓' : 'Sync failed ✗';
+      btn.textContent = res.ok ? 'Sync started ✓' : 'Sync failed ✗';
     } catch (_) {
-      syncBtn.textContent = 'Sync failed ✗';
+      btn.textContent = 'Sync failed ✗';
     } finally {
       setTimeout(function () {
-        syncBtn.textContent = 'Sync data';
-        syncBtn.disabled = false;
+        btn.textContent = 'Sync data';
+        btn.disabled = false;
       }, 4000);
     }
   });
 
   document.getElementById('login-btn').addEventListener('click', login);
-
   document.getElementById('pw').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') login();
+  });
+
+  document.getElementById('office-btn').addEventListener('click', selectOffice);
+  document.getElementById('office-select-el').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') selectOffice();
   });
 
   sendBtn.addEventListener('click', send);
