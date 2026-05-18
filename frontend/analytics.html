@@ -321,7 +321,7 @@
   async function load() {
     var contentEl = document.getElementById('content');
     try {
-      var res = await fetch('/analytics', {
+      var res = await fetch('/api/analytics', {
         headers: { 'Authorization': 'Bearer ' + tok },
       });
       if (res.status === 401) { window.location.href = '/'; return; }

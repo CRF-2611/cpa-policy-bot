@@ -81,7 +81,7 @@ export default {
       return withCors(json({ messages: data ?? [] }));
     }
 
-    if (pathname === '/analytics') {
+    if (pathname === '/api/analytics') {
       if (request.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
       const authErr = requireBearer(request, env.APP_PASSWORD);
       if (authErr) return authErr;
