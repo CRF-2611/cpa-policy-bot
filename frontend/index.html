@@ -994,6 +994,7 @@
   var userMsgCount = 0;
   var MSG_WARN     = 8;
   var MSG_LIMIT    = 10;
+  var pendingSend  = null;
 
   function updateMsgLimit() {
     if (userMsgCount >= MSG_LIMIT) {
@@ -1054,7 +1055,6 @@
     var office = sessionStorage.getItem('office') || '';
     document.getElementById('office-display').textContent = office || 'No office set';
     renderSidebar();
-    if (isNewSession) showOfficeModal();
     setTimeout(function () { document.getElementById('msg-input').focus(); }, 40);
   }
 
@@ -1112,6 +1112,11 @@
   function hideOfficeModal(office) {
     document.getElementById('office-modal').style.display = 'none';
     if (office) saveOffice(office);
+    if (pendingSend !== null) {
+      inputEl.value = pendingSend;
+      pendingSend = null;
+      send();
+    }
   }
 
   document.getElementById('office-modal-btn').addEventListener('click', function () {
@@ -1374,6 +1379,13 @@
     if (userMsgCount >= MSG_LIMIT) return;
     var text = inputEl.value.trim();
     if (!text) return;
+    if (isNewSession && !sessionStorage.getItem('office')) {
+      pendingSend = text;
+      inputEl.value = '';
+      inputEl.style.height = 'auto';
+      showOfficeModal();
+      return;
+    }
 
     var tok    = sessionStorage.getItem('tok');
     var sid    = sessionStorage.getItem('sid');
@@ -1487,11 +1499,12 @@
     setStatus(null);
     isNewSession = true;
     userMsgCount = 0;
+    pendingSend  = null;
     limitBarEl.style.display = 'none';
     document.getElementById('office-display').textContent = 'No office set';
     renderSidebar();
     if (window.innerWidth < 700) setSidebarOpen(false);
-    showOfficeModal();
+    document.getElementById('msg-input').focus();
   });
 
   document.getElementById('change-office-btn').addEventListener('click', function () {
