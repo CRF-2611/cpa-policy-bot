@@ -327,7 +327,19 @@
       if (res.status === 401) { window.location.href = '/'; return; }
       if (!res.ok) throw new Error('Server error ' + res.status);
 
-      var d = await res.json();
+      var text = await res.text();
+      var d;
+      try {
+        d = JSON.parse(text);
+      } catch (_) {
+        contentEl.innerHTML =
+          '<div class="error-msg">' +
+            '<strong>Analytics not available yet.</strong><br>' +
+            'The latest deployment may still be propagating to Cloudflare — ' +
+            'please wait a minute and <a href="/analytics.html" style="color:#b91c1c;">refresh this page</a>.' +
+          '</div>';
+        return;
+      }
       render(d);
     } catch (err) {
       contentEl.innerHTML = '<div class="error-msg">Failed to load analytics: ' + esc(err.message) + '</div>';
@@ -353,6 +365,17 @@
       : '—';
 
     /* ── Cards ── */
+    if (totalSessions === 0) {
+      contentEl.innerHTML =
+        '<div style="background:#fff;border-radius:10px;padding:2rem 1.5rem;box-shadow:0 1px 4px rgba(0,0,0,0.08);text-align:center;color:#888;font-size:0.9rem;">' +
+          '<div style="font-size:2rem;margin-bottom:0.75rem;">📊</div>' +
+          '<strong style="color:#1A3A5C;font-size:1rem;">No usage data yet</strong><br><br>' +
+          'Analytics will appear here once CPAs start using the bot. ' +
+          'Each chat session and office selection is tracked automatically.' +
+        '</div>';
+      return;
+    }
+
     var cardsHtml =
       '<div class="cards">' +
         card('Total sessions', totalSessions, 'all time') +
