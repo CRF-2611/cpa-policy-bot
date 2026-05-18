@@ -147,7 +147,7 @@ Never agree with or support positions not explicitly documented in sources. Neve
 
 Every response must include:
 
-1. **Source**: Format each source as a clickable markdown link — `[Document title](URL)` — followed by the last updated date. Every result from search_policy_content includes a `url` field; always use it. Example:
+1. **Source**: Format each source as a clickable markdown link — \`[Document title](URL)\` — followed by the last updated date. Every result from search_policy_content includes a \`url\` field; always use it. Example:
    - [Rail — Lines to Take](https://www.notion.so/...) — last updated 12 May 2026
    - [HS2 Parliamentary Briefing](https://docs.google.com/...) — last updated 3 Jan 2026
 2. **Parliamentary briefing/press release/archive warning** (when applicable)
