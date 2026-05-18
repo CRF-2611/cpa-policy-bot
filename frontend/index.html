@@ -394,11 +394,12 @@
       cursor: pointer;
       user-select: none;
       font-weight: 600;
-      color: #444;
+      color: #777;
       list-style: none;
       display: flex;
       align-items: center;
       gap: 0.35rem;
+      font-size: 0.72rem;
     }
 
     details.source-footer summary::-webkit-details-marker { display: none; }
@@ -420,6 +421,31 @@
     }
 
     details.source-footer .footer-body p { margin: 0.18em 0; }
+
+    /* ── Quick-reply chips ───────────────────────────────────────────────── */
+
+    .quick-replies {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.55rem;
+    }
+
+    .quick-btn {
+      padding: 0.32rem 0.75rem;
+      border: 1.5px solid #c8d4e0;
+      border-radius: 20px;
+      background: #fff;
+      color: #1A3A5C;
+      font-size: 0.78rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+
+    .quick-btn:hover { background: #eef2f7; border-color: #1A3A5C; }
 
     /* ── Status indicator ────────────────────────────────────────────────── */
 
@@ -1088,7 +1114,7 @@
     details.className = 'source-footer';
 
     var summary = document.createElement('summary');
-    summary.textContent = 'Sources & attribution';
+    summary.textContent = 'Sources';
 
     var body = document.createElement('div');
     body.className = 'footer-body';
@@ -1097,6 +1123,49 @@
     details.appendChild(summary);
     details.appendChild(body);
     return details;
+  }
+
+  var QUICK_REPLIES_1 = [
+    { label: 'Draft email response', text: 'Please draft an email response using this policy.' },
+    { label: 'Suggest actions',      text: 'What actions could the MP consider on this?' },
+    { label: 'Add more context',     text: 'I have additional context to add.' },
+  ];
+
+  var QUICK_REPLIES_2 = [
+    { label: 'Suggest actions',      text: 'What actions could the MP consider on this?' },
+    { label: 'Modify response',      text: 'Please modify this response.' },
+    { label: 'Add more context',     text: 'I have additional context to add.' },
+  ];
+
+  var FOLLOWUP_PATTERN_1 = 'Would you like me to draft an email response';
+  var FOLLOWUP_PATTERN_2 = 'Would you like suggestions for additional actions';
+
+  function stripFollowup(text) {
+    var idx1 = text.indexOf(FOLLOWUP_PATTERN_1);
+    var idx2 = text.indexOf(FOLLOWUP_PATTERN_2);
+    var idx  = idx1 >= 0 ? idx1 : (idx2 >= 0 ? idx2 : -1);
+    var type = idx1 >= 0 ? 1 : (idx2 >= 0 ? 2 : 0);
+    if (idx === -1) return { text: text, type: 0 };
+    return { text: text.slice(0, idx).replace(/\n+$/, ''), type: type };
+  }
+
+  function makeQuickReplies(type) {
+    var replies = type === 2 ? QUICK_REPLIES_2 : QUICK_REPLIES_1;
+    var row = document.createElement('div');
+    row.className = 'quick-replies';
+    replies.forEach(function (r) {
+      var btn = document.createElement('button');
+      btn.className = 'quick-btn';
+      btn.textContent = r.label;
+      btn.addEventListener('click', function () {
+        inputEl.value = r.text;
+        inputEl.dispatchEvent(new Event('input'));
+        inputEl.focus();
+        row.remove();
+      });
+      row.appendChild(btn);
+    });
+    return row;
   }
 
   /* ── Message DOM ──────────────────────────────────────────────────────── */
@@ -1126,9 +1195,11 @@
   }
 
   function finaliseBotBubble(wrap, bubble, text) {
-    var parts = splitFooter(text);
-    bubble.innerHTML = renderMarkdown(parts.main);
-    if (parts.footer) wrap.appendChild(makeFooterEl(parts.footer));
+    var parts   = splitFooter(text);
+    var stripped = stripFollowup(parts.main);
+    bubble.innerHTML = renderMarkdown(stripped.text);
+    if (stripped.type) wrap.appendChild(makeQuickReplies(stripped.type));
+    if (parts.footer)  wrap.appendChild(makeFooterEl(parts.footer));
     scrollBottom();
   }
 

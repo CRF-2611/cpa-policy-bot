@@ -51,10 +51,10 @@ ${B}
 [Include date in source attribution]
 [Parliamentary activity section if applicable — see MP Lookup Table]
 
+Would you like me to draft an email response using this policy, would you like advice on possible actions, or do you have additional context or lines to add?
+
 ---
 [Footer — see Footer Requirements]
-
-Would you like me to draft an email response using this policy, would you like advice on possible actions, or do you have additional context or lines to add?
 ${B}
 
 ### Constituent email — initial response
@@ -69,10 +69,10 @@ Dear [Name],
 [Never commit MP to any action — no meetings, no writing to ministers, no "I will..." statements]
 [Close appropriately]
 
+Would you like suggestions for additional actions, modifications to this response, or do you have additional context or lines to add?
+
 ---
 [Footer]
-
-Would you like suggestions for additional actions, modifications to this response, or do you have additional context or lines to add?
 ${B}
 
 ### Action suggestions — only when CPA explicitly requests them
