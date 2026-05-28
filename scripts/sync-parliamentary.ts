@@ -65,7 +65,7 @@ async function fetchLibDemMembers(): Promise<MemberValue[]> {
 
   while (true) {
     const res = await fetch(
-      `${MEMBERS_BASE}/api/Members/Search?PartyId=${LIB_DEM_PARTY_ID}&IsCurrentMember=true&skip=${skip}&take=${take}`,
+      `${MEMBERS_BASE}/api/Members/Search?PartyId=${LIB_DEM_PARTY_ID}&House=1&IsCurrentMember=true&skip=${skip}&take=${take}`,
     );
     if (!res.ok) {
       console.error('Members API error:', res.status, await res.text());
