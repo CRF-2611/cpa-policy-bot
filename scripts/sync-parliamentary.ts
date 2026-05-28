@@ -59,15 +59,26 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 async function fetchLibDemMembers(): Promise<MemberValue[]> {
-  const res = await fetch(
-    `${MEMBERS_BASE}/api/Members/Search?PartyId=${LIB_DEM_PARTY_ID}&IsCurrentMember=true&skip=0&take=500`,
-  );
-  if (!res.ok) {
-    console.error('Members API error:', res.status, await res.text());
-    return [];
+  const all: MemberValue[] = [];
+  let skip = 0;
+  const take = 20; // Members API max page size is 20
+
+  while (true) {
+    const res = await fetch(
+      `${MEMBERS_BASE}/api/Members/Search?PartyId=${LIB_DEM_PARTY_ID}&IsCurrentMember=true&skip=${skip}&take=${take}`,
+    );
+    if (!res.ok) {
+      console.error('Members API error:', res.status, await res.text());
+      break;
+    }
+    const data = (await res.json()) as MembersSearchResponse;
+    const page = data.items.map(i => i.value);
+    all.push(...page);
+    if (all.length >= data.totalResults || page.length < take) break;
+    skip += take;
   }
-  const data = (await res.json()) as MembersSearchResponse;
-  return data.items.map(i => i.value);
+
+  return all;
 }
 
 async function syncDebates(
@@ -86,7 +97,7 @@ async function syncDebates(
       url.searchParams.set('queryParameters.memberId', String(member.id));
       url.searchParams.set('queryParameters.startDate', startDate);
       url.searchParams.set('queryParameters.endDate', endDate);
-      url.searchParams.set('queryParameters.take', '500');
+      url.searchParams.set('queryParameters.take', '100');
       url.searchParams.set('queryParameters.skip', '0');
 
       const res = await fetch(url.toString());
@@ -234,18 +245,29 @@ async function main() {
     process.exit(1);
   }
 
-  // First run: backfill 5 years. Subsequent runs: last 2 days.
   const { count } = await supabase
     .from('policy_content')
     .select('*', { count: 'exact', head: true })
     .eq('source', 'hansard');
 
   const isFirstRun = (count ?? 0) === 0;
-  const startDate = isoDate(Date.now() - (isFirstRun ? 5 * 365 : 2) * 86_400_000);
-  const endDate = isoDate(Date.now());
-  console.log(`Sync window: ${startDate} → ${endDate} (${isFirstRun ? '5-year backfill' : 'incremental'})`);
 
-  await syncDebates(members, startDate, endDate);
+  if (isFirstRun) {
+    // Backfill year by year to avoid Hansard API timeouts on large date ranges
+    const currentYear = new Date().getFullYear();
+    for (let year = 2021; year <= currentYear; year++) {
+      const startDate = `${year}-01-01`;
+      const endDate = year === currentYear ? isoDate(Date.now()) : `${year}-12-31`;
+      console.log(`Backfilling ${year}: ${startDate} → ${endDate}`);
+      await syncDebates(members, startDate, endDate);
+    }
+  } else {
+    const startDate = isoDate(Date.now() - 2 * 86_400_000);
+    const endDate = isoDate(Date.now());
+    console.log(`Incremental sync: ${startDate} → ${endDate}`);
+    await syncDebates(members, startDate, endDate);
+  }
+
   await syncWrittenQuestions(members);
 
   console.log('Parliamentary sync complete.');
