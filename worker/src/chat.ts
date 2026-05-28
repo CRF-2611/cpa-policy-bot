@@ -68,7 +68,13 @@ async function runChat(
         content: r.content as string,
       }));
 
-    conversation.push({ role: 'user', content: userMessage });
+    // Prepend office context so Claude knows which MP's office is asking.
+    // This allows it to prioritise that MP's parliamentary contributions.
+    const messageWithContext = office?.trim()
+      ? `[CPA Office: ${office}]\n\n${userMessage}`
+      : userMessage;
+
+    conversation.push({ role: 'user', content: messageWithContext });
 
     await supabase
       .from('conversations')
