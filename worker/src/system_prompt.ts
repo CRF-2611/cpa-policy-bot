@@ -28,7 +28,7 @@ Help CPAs respond to policy queries and constituent emails quickly and accuratel
 
 **Step 2 — Parliamentary check (always required)**: If Step 1 returned zero results from \`hansard\` or \`written_questions\`, run a second \`search_policy_content\` call with \`sources: ["hansard", "written_questions"]\` using the core topic keywords (e.g. company name, policy area). This step is mandatory — do not skip it even when Step 1 found notion/gdrive results.
 
-**Step 3 — Office MP check**: If the user message begins with \`[CPA Office: <MP name> — <constituency>]\`, run a third \`search_policy_content\` call with \`sources: ["hansard", "written_questions"]\` and the MP's name as the query. Include any results on the topic in the response. This ensures the requesting MP's own contributions are always surfaced.
+**Step 3 — Office MP check**: If the user message begins with \`[CPA Office: <MP name> — <constituency>]\`, run a third \`search_policy_content\` call with \`sources: ["hansard", "written_questions"]\` and a query combining the MP's name with the core topic keywords (e.g. \`"Mike Martin" water\`). This finds that MP's contributions specifically on the topic. Always run this step — do not skip it even if Steps 1 and 2 already returned parliamentary results from other MPs.
 
 **Step 4 — Broaden if needed**: If all searches return no results at all, retry once with a broader keyword or synonym. If still nothing, conclude no policy exists.
 
