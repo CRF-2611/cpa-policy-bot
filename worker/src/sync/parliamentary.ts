@@ -15,29 +15,40 @@ interface MembersSearchResponse {
   totalResults: number;
 }
 
+// Matches SearchReferencesItem from the Hansard API spec
 interface HansardContribution {
-  ExternalId: string;
+  ContributionExtId: string;
+  ItemId: number;
+  DebateSection: string;
   Section: string;
-  Contribution: string;
-  ContributionDate: string;
-  DebateType: string;
+  ContributionText: string;
+  ContributionTextFull: string;
+  SittingDate: string;
   DebateSectionExtId: string;
+  HRSTag: string;
+  House: string;
+  MemberName: string;
+  MemberId: number;
 }
 
 interface HansardSearchResponse {
   Results?: HansardContribution[];
+  TotalResultCount?: number;
+}
+
+// Matches WrittenQuestionMembersServiceSearchResult from the Members API spec
+interface WrittenQuestionsResponse {
+  items?: { value: WrittenQuestionValue }[];
+  totalResults?: number;
 }
 
 interface WrittenQuestionValue {
   id: number;
-  questionText: string;
+  questionText: string | null;
   answerText: string | null;
-  answeringBodyName: string;
+  answeringBodyName?: string;
+  heading?: string | null;
   dateTabled: string;
-}
-
-interface WrittenQuestionsResponse {
-  results?: { value: WrittenQuestionValue }[];
 }
 
 export async function syncParliamentary(env: Env): Promise<void> {
@@ -58,7 +69,7 @@ export async function syncParliamentary(env: Env): Promise<void> {
   console.log(`Parliamentary sync window: ${startDate} → ${endDate} (${isFirstRun ? 'backfill' : 'incremental'})`);
 
   await syncDebates(supabase, members, startDate, endDate);
-  await syncWrittenQuestions(supabase, members, startDate, endDate);
+  await syncWrittenQuestions(supabase, members);
 }
 
 async function fetchLibDemMembers(): Promise<MemberValue[]> {
@@ -73,45 +84,61 @@ async function fetchLibDemMembers(): Promise<MemberValue[]> {
   return data.items.map(i => i.value);
 }
 
-async function syncDebates(supabase: SupabaseClient, members: MemberValue[], startDate: string, endDate: string): Promise<void> {
+async function syncDebates(
+  supabase: SupabaseClient,
+  members: MemberValue[],
+  startDate: string,
+  endDate: string,
+): Promise<void> {
   let synced = 0;
   let failed = false;
 
-  await supabase.from('sync_log').insert({
-    source: 'hansard',
-    status: 'in_progress',
-    records_updated: 0,
-  });
+  await supabase.from('sync_log').insert({ source: 'hansard', status: 'in_progress', records_updated: 0 });
 
   try {
     for (const member of members) {
-      const res = await fetch(
-        `${HANSARD_BASE}/search/contributions.json?memberId=${member.id}&startDate=${startDate}&endDate=${endDate}`,
-      );
-      if (!res.ok) continue;
+      // Correct endpoint: /search/contributions/{contributionType}.json
+      // with queryParameters.* prefix on all query params
+      const url = new URL(`${HANSARD_BASE}/search/contributions/Spoken.json`);
+      url.searchParams.set('queryParameters.memberId', String(member.id));
+      url.searchParams.set('queryParameters.startDate', startDate);
+      url.searchParams.set('queryParameters.endDate', endDate);
+      url.searchParams.set('queryParameters.take', '500');
+      url.searchParams.set('queryParameters.skip', '0');
+
+      const res = await fetch(url.toString());
+      if (!res.ok) {
+        console.error(`Hansard API error for member ${member.id}: ${res.status}`);
+        continue;
+      }
 
       const data = (await res.json()) as HansardSearchResponse;
       if (!data.Results?.length) continue;
 
       for (const item of data.Results) {
-        const debateDate = item.ContributionDate?.split('T')[0] ?? yesterday;
+        const debateDate = item.SittingDate?.split('T')[0] ?? startDate;
         const hansardUrl = item.DebateSectionExtId
           ? `https://hansard.parliament.uk/debates/${item.DebateSectionExtId}`
           : null;
 
+        const sourceId = item.ContributionExtId ?? String(item.ItemId);
+        const title = item.DebateSection || item.Section || '';
+        const content = `${member.nameFullTitle}: ${item.ContributionTextFull || item.ContributionText || ''}`;
+
         const { error } = await supabase.from('policy_content').upsert(
           {
             source: 'hansard',
-            source_id: item.ExternalId,
-            title: item.Section ?? '',
-            content: item.Contribution ?? '',
+            source_id: sourceId,
+            title,
+            content,
             url: hansardUrl,
             last_updated: debateDate,
             synced_at: new Date().toISOString(),
             metadata: {
               member_name: member.nameFullTitle,
               member_id: member.id,
-              debate_type: item.DebateType ?? '',
+              house: item.House ?? '',
+              hrs_tag: item.HRSTag ?? '',
             },
           },
           { onConflict: 'source,source_id' },
@@ -135,7 +162,7 @@ async function syncDebates(supabase: SupabaseClient, members: MemberValue[], sta
   console.log(`Debates sync complete: ${synced} contributions upserted`);
 }
 
-async function syncWrittenQuestions(supabase: SupabaseClient, members: MemberValue[], startDate: string, endDate: string): Promise<void> {
+async function syncWrittenQuestions(supabase: SupabaseClient, members: MemberValue[]): Promise<void> {
   let synced = 0;
   let failed = false;
 
@@ -147,29 +174,45 @@ async function syncWrittenQuestions(supabase: SupabaseClient, members: MemberVal
 
   try {
     for (const member of members) {
+      // API only supports pagination via `page` — no date filtering available
+      // Fetch page 1 (most recent questions) on each run; upsert ignores duplicates
       const res = await fetch(
-        `${MEMBERS_BASE}/api/Members/${member.id}/WrittenQuestions?answered=Any&dateFrom=${startDate}&dateTo=${endDate}&take=500`,
+        `${MEMBERS_BASE}/api/Members/${member.id}/WrittenQuestions?page=1`,
       );
-      if (!res.ok) continue;
+      if (!res.ok) {
+        console.error(`Written questions API error for member ${member.id}: ${res.status}`);
+        continue;
+      }
 
       const data = (await res.json()) as WrittenQuestionsResponse;
-      if (!data.results?.length) continue;
+      // Response uses `items` not `results`
+      if (!data.items?.length) continue;
 
-      for (const item of data.results) {
+      for (const item of data.items) {
         const q = item.value;
-        const combined = [q.questionText, q.answerText].filter(Boolean).join('\n\nAnswer:\n');
+        if (!q) continue;
+
+        const combined = [
+          q.questionText,
+          q.answerText ? `Answer:\n${q.answerText}` : null,
+        ].filter(Boolean).join('\n\n');
+
+        const title = q.heading
+          ? `WQ: ${q.heading}`
+          : `WQ: ${(q.questionText ?? '').slice(0, 120)}`;
 
         const { error } = await supabase.from('policy_content').upsert(
           {
             source: 'written_questions',
             source_id: String(q.id),
-            title: `WQ: ${q.questionText?.slice(0, 120) ?? ''}`,
-            content: combined,
+            title,
+            content: `${member.nameFullTitle}: ${combined}`,
             url: `https://questions-statements.parliament.uk/written-questions/detail/${q.id}`,
-            last_updated: q.dateTabled?.split('T')[0] ?? yesterday,
+            last_updated: q.dateTabled?.split('T')[0] ?? isoDate(Date.now()),
             synced_at: new Date().toISOString(),
             metadata: {
               member_name: member.nameFullTitle,
+              member_id: member.id,
               answering_body: q.answeringBodyName ?? '',
             },
           },
