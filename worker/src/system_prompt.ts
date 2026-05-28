@@ -61,7 +61,7 @@ ${B}
 [Include date in source attribution]
 
 **Parliamentary activity** ← include this section whenever hansard/written_questions results qualify (see MP Lookup Table for who goes here vs footer):
-- [MP name] ([constituency], [front bench role if applicable]) [described what they did — e.g. "led a Westminster Hall debate on water company accountability (DATE)" or "asked written questions on sewage discharge (DATE)"]
+- [MP name] ([constituency], [front bench role if applicable]) [described what they did — e.g. "led a Westminster Hall debate on water company accountability (DATE)" or "asked written questions on sewage discharge (DATE)"] ⚠️ Over 6 months ago — verify this remains current party position ← add this flag if the contribution date is more than 6 months before today
 - [additional qualifying MPs if any]
 
 Would you like me to draft an email response using this policy, would you like advice on possible actions, or do you have additional context or lines to add?
