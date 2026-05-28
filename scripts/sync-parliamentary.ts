@@ -1,5 +1,4 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import type { Env } from '../index';
 
 const HANSARD_BASE = 'https://hansard-api.parliament.uk';
 const MEMBERS_BASE = 'https://members-api.parliament.uk';
@@ -15,7 +14,6 @@ interface MembersSearchResponse {
   totalResults: number;
 }
 
-// Matches SearchReferencesItem from the Hansard API spec
 interface HansardContribution {
   ContributionExtId: string;
   ItemId: number;
@@ -36,7 +34,6 @@ interface HansardSearchResponse {
   TotalResultCount?: number;
 }
 
-// Matches WrittenQuestionMembersServiceSearchResult from the Members API spec
 interface WrittenQuestionsResponse {
   items?: { value: WrittenQuestionValue }[];
   totalResults?: number;
@@ -51,50 +48,22 @@ interface WrittenQuestionValue {
   dateTabled: string;
 }
 
-export async function syncParliamentary(env: Env): Promise<void> {
-  const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  const members = await fetchLibDemMembers();
-  console.log(`Parliamentary sync: found ${members.length} Lib Dem members`);
-
-  if (members.length === 0) {
-    // Members API returned empty — almost certainly blocked (IP allowlist 403).
-    // Log as error so this shows up as a failure rather than silent success.
-    await supabase.from('sync_log').insert({
-      source: 'hansard',
-      status: 'error',
-      records_updated: 0,
-    });
-    await supabase.from('sync_log').insert({
-      source: 'written_questions',
-      status: 'error',
-      records_updated: 0,
-    });
-    console.error('Parliamentary sync aborted: Members API returned 0 members (likely IP-blocked)');
-    return;
-  }
-
-  // First run: backfill 5 years. Subsequent runs: last 2 days.
-  const { count } = await supabase
-    .from('policy_content')
-    .select('*', { count: 'exact', head: true })
-    .eq('source', 'hansard');
-
-  const isFirstRun = (count ?? 0) === 0;
-  const startDate = isoDate(Date.now() - (isFirstRun ? 5 * 365 : 2) * 86_400_000);
-  const endDate = isoDate(Date.now());
-  console.log(`Parliamentary sync window: ${startDate} → ${endDate} (${isFirstRun ? 'backfill' : 'incremental'})`);
-
-  await syncDebates(supabase, members, startDate, endDate);
-  await syncWrittenQuestions(supabase, members);
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  console.error('Missing required environment variables: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY');
+  process.exit(1);
 }
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 async function fetchLibDemMembers(): Promise<MemberValue[]> {
   const res = await fetch(
     `${MEMBERS_BASE}/api/Members/Search?PartyId=${LIB_DEM_PARTY_ID}&IsCurrentMember=true&skip=0&take=500`,
   );
   if (!res.ok) {
-    console.error('Members API error:', res.status);
+    console.error('Members API error:', res.status, await res.text());
     return [];
   }
   const data = (await res.json()) as MembersSearchResponse;
@@ -102,7 +71,6 @@ async function fetchLibDemMembers(): Promise<MemberValue[]> {
 }
 
 async function syncDebates(
-  supabase: SupabaseClient,
   members: MemberValue[],
   startDate: string,
   endDate: string,
@@ -114,8 +82,6 @@ async function syncDebates(
 
   try {
     for (const member of members) {
-      // Correct endpoint: /search/contributions/{contributionType}.json
-      // with queryParameters.* prefix on all query params
       const url = new URL(`${HANSARD_BASE}/search/contributions/Spoken.json`);
       url.searchParams.set('queryParameters.memberId', String(member.id));
       url.searchParams.set('queryParameters.startDate', startDate);
@@ -125,12 +91,14 @@ async function syncDebates(
 
       const res = await fetch(url.toString());
       if (!res.ok) {
-        console.error(`Hansard API error for member ${member.id}: ${res.status}`);
+        console.error(`Hansard API error for member ${member.id} (${member.nameFullTitle}): ${res.status}`);
         continue;
       }
 
       const data = (await res.json()) as HansardSearchResponse;
       if (!data.Results?.length) continue;
+
+      console.log(`  ${member.nameFullTitle}: ${data.Results.length} contributions`);
 
       for (const item of data.Results) {
         const debateDate = item.SittingDate?.split('T')[0] ?? startDate;
@@ -179,7 +147,7 @@ async function syncDebates(
   console.log(`Debates sync complete: ${synced} contributions upserted`);
 }
 
-async function syncWrittenQuestions(supabase: SupabaseClient, members: MemberValue[]): Promise<void> {
+async function syncWrittenQuestions(members: MemberValue[]): Promise<void> {
   let synced = 0;
   let failed = false;
 
@@ -191,8 +159,6 @@ async function syncWrittenQuestions(supabase: SupabaseClient, members: MemberVal
 
   try {
     for (const member of members) {
-      // API only supports pagination via `page` — no date filtering available
-      // Fetch page 1 (most recent questions) on each run; upsert ignores duplicates
       const res = await fetch(
         `${MEMBERS_BASE}/api/Members/${member.id}/WrittenQuestions?page=1`,
       );
@@ -202,7 +168,6 @@ async function syncWrittenQuestions(supabase: SupabaseClient, members: MemberVal
       }
 
       const data = (await res.json()) as WrittenQuestionsResponse;
-      // Response uses `items` not `results`
       if (!data.items?.length) continue;
 
       for (const item of data.items) {
@@ -257,3 +222,36 @@ async function syncWrittenQuestions(supabase: SupabaseClient, members: MemberVal
 function isoDate(timestamp: number): string {
   return new Date(timestamp).toISOString().split('T')[0];
 }
+
+async function main() {
+  console.log('Parliamentary sync starting…');
+
+  const members = await fetchLibDemMembers();
+  console.log(`Found ${members.length} Lib Dem members`);
+
+  if (members.length === 0) {
+    console.error('Aborting: Members API returned 0 members (possibly IP-blocked)');
+    process.exit(1);
+  }
+
+  // First run: backfill 5 years. Subsequent runs: last 2 days.
+  const { count } = await supabase
+    .from('policy_content')
+    .select('*', { count: 'exact', head: true })
+    .eq('source', 'hansard');
+
+  const isFirstRun = (count ?? 0) === 0;
+  const startDate = isoDate(Date.now() - (isFirstRun ? 5 * 365 : 2) * 86_400_000);
+  const endDate = isoDate(Date.now());
+  console.log(`Sync window: ${startDate} → ${endDate} (${isFirstRun ? '5-year backfill' : 'incremental'})`);
+
+  await syncDebates(members, startDate, endDate);
+  await syncWrittenQuestions(members);
+
+  console.log('Parliamentary sync complete.');
+}
+
+main().catch(err => {
+  console.error('Fatal error:', err);
+  process.exit(1);
+});
