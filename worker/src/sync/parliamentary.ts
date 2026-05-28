@@ -57,6 +57,23 @@ export async function syncParliamentary(env: Env): Promise<void> {
   const members = await fetchLibDemMembers();
   console.log(`Parliamentary sync: found ${members.length} Lib Dem members`);
 
+  if (members.length === 0) {
+    // Members API returned empty — almost certainly blocked (IP allowlist 403).
+    // Log as error so this shows up as a failure rather than silent success.
+    await supabase.from('sync_log').insert({
+      source: 'hansard',
+      status: 'error',
+      records_updated: 0,
+    });
+    await supabase.from('sync_log').insert({
+      source: 'written_questions',
+      status: 'error',
+      records_updated: 0,
+    });
+    console.error('Parliamentary sync aborted: Members API returned 0 members (likely IP-blocked)');
+    return;
+  }
+
   // First run: backfill 5 years. Subsequent runs: last 2 days.
   const { count } = await supabase
     .from('policy_content')
