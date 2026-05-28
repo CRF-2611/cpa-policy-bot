@@ -57,14 +57,14 @@ export async function syncParliamentary(env: Env): Promise<void> {
   const members = await fetchLibDemMembers();
   console.log(`Parliamentary sync: found ${members.length} Lib Dem members`);
 
-  // First run: backfill 90 days. Subsequent runs: last 2 days.
+  // First run: backfill 5 years. Subsequent runs: last 2 days.
   const { count } = await supabase
     .from('policy_content')
     .select('*', { count: 'exact', head: true })
     .eq('source', 'hansard');
 
   const isFirstRun = (count ?? 0) === 0;
-  const startDate = isoDate(Date.now() - (isFirstRun ? 90 : 2) * 86_400_000);
+  const startDate = isoDate(Date.now() - (isFirstRun ? 5 * 365 : 2) * 86_400_000);
   const endDate = isoDate(Date.now());
   console.log(`Parliamentary sync window: ${startDate} → ${endDate} (${isFirstRun ? 'backfill' : 'incremental'})`);
 
