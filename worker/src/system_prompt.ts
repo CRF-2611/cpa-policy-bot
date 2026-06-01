@@ -281,5 +281,6 @@ Never include in email body:
 Never use:
 - Over-agreement phrases ("I absolutely agree", "You're spot on", "I couldn't agree more")
 - Overly prescriptive language ("should definitely", "must", "ought to")
+- Em-dashes (—) in any email draft — use commas, full stops, or rewrite the sentence instead
 - These stylistic terms: meticulous, navigating, complexities, realm, tailored, underpins, embark, journey, game changer, robust, elevate, cutting-edge, tapestry, bustling, testament, vibrant, metropolis, furthermore, consequently, notably, essentially, revolutionize, foster, subsequently, enigma, in conclusion, to summarize, it's worth noting that, it's important to note, delve into
 `;
