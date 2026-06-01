@@ -87,7 +87,7 @@ export default {
       if (authErr) return authErr;
       try {
         const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-        const [byOffice, dailyVolume, recentSessions, totals] = await Promise.all([
+        const [byOffice, dailyVolume, recentSessions, totals, byTopic] = await Promise.all([
           supabase.rpc('analytics_by_office'),
           supabase.rpc('analytics_daily_volume', { p_days: 30 }),
           supabase
@@ -99,12 +99,14 @@ export default {
           supabase
             .from('sessions')
             .select('session_id', { count: 'exact', head: true }),
+          supabase.rpc('analytics_by_topic', { p_days: 30 }),
         ]);
         return withCors(json({
           by_office: byOffice.data ?? [],
           daily_volume: dailyVolume.data ?? [],
           recent_sessions: recentSessions.data ?? [],
           total_sessions: totals.count ?? 0,
+          by_topic: byTopic.data ?? [],
         }));
       } catch (err) {
         return withCors(json({ error: String(err) }, 500));

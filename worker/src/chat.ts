@@ -158,6 +158,7 @@ async function runChat(
             block.name,
             block.input as Record<string, unknown>,
             supabase,
+            sessionId,
           );
           return {
             type: 'tool_result' as const,
