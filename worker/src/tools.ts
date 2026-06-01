@@ -81,6 +81,7 @@ export async function executeTool(
   name: string,
   input: Record<string, unknown>,
   supabase: SupabaseClient,
+  sessionId?: string,
 ): Promise<unknown> {
   switch (name) {
     case 'search_policy_content':
@@ -88,6 +89,7 @@ export async function executeTool(
         supabase,
         input.query as string,
         input.sources as Source[] | undefined,
+        sessionId,
       );
 
     case 'get_document_content':
@@ -107,6 +109,7 @@ async function searchPolicyContent(
   supabase: SupabaseClient,
   query: string,
   sources?: Source[],
+  sessionId?: string,
 ): Promise<unknown> {
   if (!query?.trim()) {
     return { error: 'query must not be empty' };
@@ -123,7 +126,27 @@ async function searchPolicyContent(
 
   if (error) return { error: error.message };
 
+  // Log topics from Notion results for analytics
+  if (sessionId && data?.length) {
+    const notionResults = (data as { source: string; title: string }[]).filter(
+      r => r.source === 'notion' && r.title,
+    );
+    if (notionResults.length) {
+      const rows = notionResults.map(r => ({
+        session_id: sessionId,
+        topic: extractTopic(r.title),
+      }));
+      supabase.from('topic_log').insert(rows).then(() => {});
+    }
+  }
+
   return { results: data ?? [], count: (data ?? []).length };
+}
+
+function extractTopic(title: string): string {
+  // "Water — Lines to Take" → "Water"
+  // "HS2 Parliamentary Briefing" → "HS2"
+  return title.split(/\s*[—\-–:]\s*/)[0].trim();
 }
 
 async function getDocumentContent(supabase: SupabaseClient, id: string): Promise<unknown> {
